@@ -47,7 +47,7 @@ export function FilesPanel({ siteId }: { siteId: string }) {
             {rows.map((f) => (
               <tr key={f.id}>
                 <td data-label="ファイル">
-                  <a className={s.link} href={`/sample-files/${f.path}`} target="_blank" rel="noreferrer">{f.name}</a>
+                  <a className={s.link} href={'/' + f.path.replace(/^\/?public\//, '').replace(/^\//, '')} target="_blank" rel="noreferrer">{f.name}</a>
                 </td>
                 <td data-label="種類">{f.kind}</td>
                 <td data-label="共有先">

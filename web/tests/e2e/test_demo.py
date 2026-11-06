@@ -119,6 +119,10 @@ def main():
         check("社長は全20件が見える", "20 件" in t, re.findall(r"\d+ 件", t)[:2])
         page.goto(base + "/sites/detail/?id=S-2610-03")
         check("社長は契約金額 560,900 円が見える", "560,900" in body(page))
+        page.get_by_role("tab", name="ファイル").click()
+        page.wait_for_timeout(600)
+        hrefs = page.locator("main a[target=_blank]").evaluate_all("els=>els.map(e=>e.getAttribute('href'))")
+        check("社内の「ファイル」タブのリンクが、実在するファイルを指す", hrefs and all(h.startswith("/sample-files/") and not h.startswith("/sample-files/sample-files/") and page.request.get(base + h).status == 200 for h in hrefs), str(hrefs))
         page.goto(base + "/users/")
         check("社長はユーザー管理が開ける", "ユーザー管理" in body(page))
 
