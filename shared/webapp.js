@@ -1,5 +1,5 @@
-// Web アプリの画面の共通の部品（Google の外に置く画面で使う。build.py が portfolio/site/shared/ にコピーする）。
-// 処理は GAS の Web アプリ（受け口 doPost）に fetch で送る。考え方は portfolio/shared/gas/modules/webapp.js の頭。
+// Web アプリの画面の共通の部品（Google の外に置く画面で使う。build.py が samples/_web-app-src/shared/ にコピーする）。
+// 処理は GAS の Web アプリ（受け口 doPost）に fetch で送る。考え方は samples/_shared/gas/modules/webapp.js の頭。
 //
 // 画面の URL：<画面>.html?s=<受け口のデプロイID>&k=<合言葉>
 //   s と k は台帳の「設定」から作る（メニュー「〜の画面の URL を出す」）。画面のファイルには、お客さんごとの値を書かない。
