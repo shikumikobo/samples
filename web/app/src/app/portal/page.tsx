@@ -71,7 +71,8 @@ export default function PortalPage() {
     return () => { alive = false; };
   }, [user, isExternal, siteId]);
 
-  if (!user) return null;
+  // 入り直す（ログアウト）直後は user が空になる。枠（PortalShell）を残して、ログイン画面へ戻す処理を動かす
+  if (!user) return <PortalShell>{null}</PortalShell>;
 
   // 社内の人が開いたとき
   if (!isExternal) {

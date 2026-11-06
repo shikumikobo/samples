@@ -170,6 +170,9 @@ def main():
         ps = {"S-2610-01", "S-2610-04", "S-2611-01"}
         hidden = [nm for nm, sid, vis in files if sid in ps and vis in ("internal", "customer")]
         check("協力業者に社内用・お客さん用のファイルが出ない", len(hidden) > 0 and all(h not in t for h in hidden), f"出ている：{[h for h in hidden if h in t]}")
+        page.get_by_role("button", name="入り直す").click()
+        page.wait_for_timeout(2500)
+        check("外部の人が「入り直す」を押すとログイン画面に戻る", page.url.rstrip("/") == base and "現場管理アプリ" in body(page), page.url)
 
         print("スマホ幅（375px）")
         mctx = b.new_context(viewport={"width": 375, "height": 812}, device_scale_factor=2, is_mobile=True, has_touch=True)
