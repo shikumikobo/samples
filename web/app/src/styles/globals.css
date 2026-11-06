@@ -1,0 +1,141 @@
+:root {
+  --navy: #17324d;
+  --blue: #26598a;
+  --blue-soft: #e6eef5;
+  --ink: #1b2430;
+  --muted: #5d6b7b;
+  --line: #cfd8de;
+  --bg: #f3f5f6;
+  --card: #ffffff;
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --ok: #2e7d4f;
+  --warn: #9a6700;
+  --warn-soft: #fff4d6;
+  --tap: 44px;
+  --safety: #f2b705;
+  --board: #1f3b33;
+  --board-edge: #a47c4b;
+  --chalk: #eef1e8;
+  --font: var(--font-ui), 'BIZ UDPGothic', -apple-system, 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+  --num: var(--font-num), 'BIZ UDGothic', ui-monospace, 'Yu Gothic', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: var(--font); color: var(--ink); background: var(--bg); font-size: 15px; line-height: 1.6; min-width: 320px; overflow-wrap: anywhere; }
+a { color: var(--blue); }
+h1 { font-size: 20px; margin: 0 0 12px; color: var(--navy); }
+h2 { font-size: 16px; margin: 20px 0 8px; color: var(--navy); }
+button { font-family: inherit; font-size: 15px; min-height: var(--tap); min-width: var(--tap); padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+button.danger { color: var(--danger); border-color: var(--danger); }
+button:disabled { opacity: .5; cursor: default; }
+input, select, textarea { font-family: inherit; font-size: 16px; min-height: var(--tap); padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; max-width: 100%; }
+:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.demo-banner { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--warn-soft); color: var(--warn); font-size: 13px; padding: 6px 12px; border-bottom: 1px solid #ecd68a; }
+.demo-banner button { min-height: 36px; padding: 0 12px; font-size: 13px; }
+
+.shell-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--navy); color: #fff; padding: 6px 12px; }
+.shell-top .brand { font-weight: bold; margin-right: 8px; }
+.shell-top nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+.shell-top nav a { color: #fff; text-decoration: none; padding: 0 12px; min-height: var(--tap); display: inline-flex; align-items: center; border-radius: 8px; }
+.shell-top nav a[aria-current='page'] { background: rgba(255,255,255,.18); }
+.role-switcher { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.role-switcher select { min-height: 36px; font-size: 14px; max-width: 200px; }
+.main { max-width: 1080px; margin: 0 auto; padding: 16px 12px 88px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.muted { color: var(--muted); font-size: 13px; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.table th { font-size: 13px; color: var(--muted); font-weight: normal; }
+
+.tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 2px solid var(--line); margin-bottom: 12px; }
+.tabs button { border: 0; background: transparent; border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+.tabs button[aria-selected='true'] { color: var(--navy); border-bottom-color: var(--navy); font-weight: bold; background: var(--blue-soft); }
+
+.badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--blue-soft); color: var(--navy); white-space: nowrap; }
+.badge.s-受付, .badge.s-見積中 { background: #e8eef7; }
+.badge.s-受注 { background: #d9e8f7; }
+.badge.s-着工 { background: #dff1e4; color: var(--ok); }
+.badge.s-完工, .badge.s-請求済み, .badge.s-入金済み, .badge.s-完了 { background: #ececec; color: #555; }
+.badge.s-失注, .badge.s-無効 { background: #f3e6e5; color: var(--danger); }
+
+.alert { border-left: 4px solid var(--danger); background: var(--danger-soft); padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; }
+.alert strong { color: var(--danger); }
+
+.tabbar { display: none; }
+@media (max-width: 720px) {
+  .shell-top nav { display: none; }
+  .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); z-index: 20; padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar a { flex: 1; min-height: 56px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: var(--muted); font-size: 12px; text-align: center; }
+  .tabbar a[aria-current='page'] { color: var(--navy); font-weight: bold; background: var(--blue-soft); }
+}
+
+/* 外部の専用ページ：文字を大きく、余白を広く */
+.portal { font-size: 18px; line-height: 1.8; }
+.portal .main { max-width: 760px; padding-top: 24px; }
+.portal-top { background: #fff; border-bottom: 3px solid var(--navy); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.portal-top .brand { font-size: 20px; font-weight: bold; color: var(--navy); }
+.portal .card { padding: 18px 20px; margin-bottom: 18px; }
+.portal button { min-height: 52px; font-size: 17px; }
+
+.install-hint { font-size: 13px; background: var(--blue-soft); border-radius: 8px; padding: 8px 12px; margin-top: 16px; }
+
+/* ---- デザインの層：青焼き（図面の青）・工事黒板・安全黄。社内は静かに、外部ページだけ強く ---- */
+h1, h2 { font-weight: 700; letter-spacing: .02em; }
+.card { border-radius: 4px; }
+.shell-top { border-bottom: 3px solid var(--safety); }
+.shell-top nav a { border-radius: 2px; }
+.shell-top nav a[aria-current='page'] { background: transparent; box-shadow: inset 0 -3px 0 var(--safety); }
+.shell-top .brand { letter-spacing: .08em; }
+button, input, select, textarea { border-radius: 4px; }
+.tabs button { border-radius: 2px 2px 0 0; }
+.tabs button[aria-selected='true'] { background: transparent; border-bottom-color: var(--safety); border-bottom-width: 4px; }
+/* 状況は「現場の標識」：塗りではなく枠で見せる */
+.badge { border-radius: 2px; background: transparent; border: 1px solid currentColor; font-size: 12px; padding: 0 7px; line-height: 1.7; color: var(--blue); }
+.badge.s-受付, .badge.s-見積中 { background: transparent; color: #5d6b7b; }
+.badge.s-受注 { background: transparent; color: var(--blue); }
+.badge.s-着工 { background: var(--safety); color: #3a2c00; border-color: var(--safety); font-weight: 700; }
+.badge.s-完工, .badge.s-請求済み, .badge.s-入金済み, .badge.s-完了 { background: transparent; color: #66707a; }
+.badge.s-失注, .badge.s-無効 { background: transparent; color: var(--danger); }
+.alert { border-left-width: 6px; border-radius: 2px; }
+/* 番号・金額・日付は等幅で桁をそろえる */
+.table td:first-child, .num, td[data-num], time { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.table th { border-bottom: 2px solid var(--navy); color: var(--navy); font-weight: 700; letter-spacing: .04em; }
+.table tr:hover td { background: #eef3f6; }
+.demo-banner { background: #fff6cc; border-bottom-color: var(--safety); color: #5a4300; }
+
+/* 外部の専用ページ：白い紙。上は細い帯だけ */
+.portal { background: #fff; color: #1c2733; }
+.portal-top { background: #fff; border-bottom: 1px solid #dde3e8; color: #1c2733; padding: 12px 16px; }
+.portal-top .brand { color: #1c2733; font-size: 17px; letter-spacing: .04em; }
+.portal-top select { color: var(--ink); }
+.portal-top button { background: transparent; color: #1c2733; border-color: #cfd8de; min-height: 40px; font-size: 14px; }
+.portal .main { max-width: 640px; padding: 28px 18px 72px; }
+
+/* スマホ：リンクも指で押せる大きさにする（表の現場番号・一覧のファイル名・「開く」） */
+@media (max-width: 720px) {
+  .main a { display: inline-block; padding: 11px 2px; line-height: 1.3; }
+}
+
+/* ログイン：役割を選んで入る。カードにせず、細い線で区切った行にする */
+.login { max-width: 680px; margin: 0 auto; padding: 40px 18px 64px; }
+.login h1 { font-size: 30px; margin: 0 0 10px; letter-spacing: .02em; }
+.login .lead { font-size: 17px; margin: 0 0 18px; max-width: 34em; }
+.login .how { margin: 0 0 32px; padding-left: 1.4em; color: var(--muted); font-size: 15px; }
+.login h2 { font-size: 17px; margin: 28px 0 4px; padding-bottom: 8px; border-bottom: 2px solid var(--navy); }
+.login h2 .sub { margin-left: 12px; font-size: 13px; font-weight: 400; color: var(--muted); }
+.login-list { list-style: none; margin: 0; padding: 0; }
+.login-list li { border-bottom: 1px solid var(--line); }
+.login-list button { display: grid; grid-template-columns: 15em 1fr; gap: 4px 16px; align-items: baseline; width: 100%; min-height: 60px; padding: 12px 6px; text-align: left; border: 0; border-radius: 0; background: transparent; }
+.login-list button:hover { background: #eaf0f5; }
+.login-list .who { font-weight: 700; font-size: 17px; }
+.login-list .role { margin-left: 10px; font-weight: 400; font-size: 12px; color: var(--blue); border: 1px solid currentColor; padding: 0 6px; border-radius: 2px; }
+.login-list .help { font-size: 14px; color: var(--muted); }
+.login .data-note { margin: 28px 0 8px; font-size: 14px; color: var(--muted); }
+@media (max-width: 600px) {
+  .login { padding-top: 24px; }
+  .login-list button { grid-template-columns: 1fr; }
+}

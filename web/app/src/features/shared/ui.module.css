@@ -1,0 +1,40 @@
+/* 画面A 用の最小の見た目。色・余白は styles/ の変数があればそれを使う（なければ既定値） */
+.page { max-width: 1080px; margin: 0 auto; padding: 16px; font-family: var(--font-body, "BIZ UDPGothic", "Yu Gothic", "Meiryo", sans-serif); color: var(--color-text, #1f2a37); }
+.head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.h1 { font-size: 20px; margin: 0; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0 12px; }
+.tab { border: 1px solid var(--color-border, #cbd5e1); background: #fff; border-radius: 999px; padding: 8px 14px; min-height: 44px; font-size: 14px; cursor: pointer; }
+.tabOn { background: var(--color-primary, #1f4e8c); color: #fff; border-color: var(--color-primary, #1f4e8c); }
+.filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 10px; border: 1px solid var(--color-border, #cbd5e1); border-radius: 8px; font-size: 14px; background: #fff; }
+.btn { min-height: 44px; padding: 8px 14px; border: 1px solid var(--color-primary, #1f4e8c); background: var(--color-primary, #1f4e8c); color: #fff; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.btnGhost { background: #fff; color: var(--color-primary, #1f4e8c); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th, .table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--color-border, #e2e8f0); vertical-align: top; }
+.table th { background: #f1f5f9; font-weight: 600; white-space: nowrap; }
+.num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e2e8f0; font-size: 12px; white-space: nowrap; }
+.warn { color: #b42318; }
+.muted { color: #526071; font-size: 13px; }
+.note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px; font-size: 14px; }
+.error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px; font-size: 14px; color: #991b1b; margin: 8px 0; }
+.grid2 { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 14px; }
+.grid2 dt { color: #526071; margin: 0; }
+.grid2 dd { margin: 0; }
+.pager { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 16px 0; }
+.diff { font-size: 13px; line-height: 1.6; }
+.diff del { color: #b42318; }
+.diff ins { color: #166534; text-decoration: none; font-weight: 600; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.link { color: var(--color-primary, #1f4e8c); text-decoration: underline; }
+/* スマホ：表を縦のカードにする */
+@media (max-width: 720px) {
+  .filters { grid-template-columns: 1fr; }
+  .stack, .stack tbody { display: block; }
+  .stack thead { position: absolute; left: -9999px; }
+  .stack tr { display: block; border: 1px solid var(--color-border, #e2e8f0); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; background: #fff; }
+  .stack td { display: flex; justify-content: space-between; gap: 12px; border: 0; padding: 4px 0; }
+  .stack td::before { content: attr(data-label); color: #64748b; font-size: 12px; flex: 0 0 5.5em; }
+  .grid2 { grid-template-columns: 100px 1fr; }
+}

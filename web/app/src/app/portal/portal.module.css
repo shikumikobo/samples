@@ -1,0 +1,72 @@
+/* 外部の専用ページ：一通の「お知らせ」のように。白い紙・大きな字・藍の線ひとつ。枠やカードで区切らず、余白と細い線で区切る */
+.head { margin: 8px 0 28px; }
+.hello { margin: 0 0 6px; color: #5f6b78; font-size: 16px; }
+.title { margin: 0; font-size: 30px; line-height: 1.35; color: #1c2733; letter-spacing: .01em; }
+.addr { margin: 6px 0 0; color: #5f6b78; font-size: 16px; }
+
+.label { margin: 0; font-size: 14px; font-weight: 700; color: #5f6b78; letter-spacing: .08em; }
+.status { padding: 22px 0 26px; border-top: 1px solid #dde3e8; }
+.now { margin: 6px 0 4px; font-size: 40px; line-height: 1.2; color: #1f4e79; }
+.term { margin: 0 0 26px; font-size: 17px; color: #1c2733; }
+.num { font-family: var(--num); font-variant-numeric: tabular-nums; }
+
+/* 進み具合：線の上に点。いまの段階だけ大きな点と太い字 */
+.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); position: relative; }
+.track::before { content: ''; position: absolute; left: 10%; right: 10%; top: 9px; height: 2px; background: #cfd8de; }
+.track li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; color: #5f6b78; font-size: 15px; }
+.dot { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 2px solid #cfd8de; z-index: 1; }
+.done .dot { background: #1f4e79; border-color: #1f4e79; }
+.done { color: #1c2733; }
+.current .dot { background: #1f4e79; border-color: #1f4e79; box-shadow: 0 0 0 5px #dbe7f1; }
+.current { color: #1f4e79; font-weight: 700; }
+
+.card { padding: 24px 0 8px; border-top: 1px solid #dde3e8; margin: 0 0 14px; font-size: 18px; line-height: 1.7; }
+.card h2 { margin: 0 0 12px; font-size: 20px; color: #1c2733; }
+.card h3 { margin: 4px 0 8px; font-size: 18px; }
+.sub { color: #5f6b78; font-size: 15px; }
+.error { color: #b3261e; font-size: 18px; }
+.pick { display: flex; flex-direction: column; gap: 6px; font-size: 16px; margin: 0 0 20px; color: #5f6b78; }
+.pick select { min-height: 52px; font: inherit; font-size: 18px; padding: 0 12px; color: #1c2733; }
+
+/* 予定：日付を大きく、1行ずつ */
+.sched { list-style: none; margin: 0; padding: 0; }
+.sched li { display: grid; grid-template-columns: 11.5em 1fr; gap: 4px 16px; padding: 14px 0; border-bottom: 1px solid #edf0f3; align-items: baseline; }
+.sched li:first-child .when { font-size: 22px; font-weight: 700; color: #1f4e79; }
+.sched li:first-child .what { font-size: 20px; }
+.when { font-size: 18px; }
+
+/* ファイル：種類の札・名前・種別。行ぜんぶが押しやすい高さ */
+.list { list-style: none; margin: 0; padding: 0; }
+.file { display: grid; grid-template-columns: 3.4em 1fr auto; gap: 12px; align-items: center; min-height: 60px; border-bottom: 1px solid #edf0f3; }
+.ext { font-family: var(--num); font-size: 13px; text-align: center; border: 1px solid #1f4e79; color: #1f4e79; border-radius: 2px; padding: 2px 0; }
+.file a { color: #1c2733; text-decoration-color: #9fb3c4; text-underline-offset: 4px; }
+.kind { color: #5f6b78; font-size: 15px; }
+
+/* お見積り：金額は右そろえ、合計だけ大きく */
+.quote { margin: 0 0 18px; }
+.confirm { border-left: 4px solid #1f4e79; padding: 6px 12px; margin: 0 0 12px; font-weight: 700; color: #1f4e79; }
+.table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.table th { text-align: left; font-weight: 700; color: #5f6b78; font-size: 14px; padding: 6px 4px; border-bottom: 2px solid #1c2733; }
+.table td, .table tfoot th { padding: 9px 4px; border-bottom: 1px solid #edf0f3; font-weight: 400; color: #1c2733; font-size: 16px; }
+.table td { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.table td:first-child { font-family: inherit; }
+.table td:nth-child(n+2), .table thead th:nth-child(n+2), .table tfoot td { text-align: right; }
+.table tfoot th { text-align: right; }
+.table td:nth-child(n+2), .table thead th:nth-child(n+2), .table tfoot td { white-space: nowrap; }
+.table tfoot tr:last-child th, .table tfoot tr:last-child td { font-size: 22px; border-bottom: 0; padding-top: 14px; color: #1f4e79; }
+
+.contact { margin: 24px 0 8px; padding-top: 20px; border-top: 1px solid #dde3e8; color: #1c2733; font-size: 17px; }
+.link { display: inline-block; margin-top: 8px; min-height: 48px; line-height: 48px; padding: 0 18px; border-radius: 4px; background: #1f4e79; color: #fff; text-decoration: none; }
+
+@media (max-width: 600px) {
+  .title { font-size: 26px; }
+  .now { font-size: 34px; }
+  .track li { font-size: 12.5px; }
+  .sched li { grid-template-columns: 1fr; padding: 12px 0; }
+  .file { grid-template-columns: 3em 1fr; }
+  .kind { grid-column: 2; margin-top: -8px; padding-bottom: 8px; }
+  .table { font-size: 13px; }
+  .table td, .table tfoot th { font-size: 13px; padding: 9px 2px; }
+  .table th { padding: 6px 2px; font-size: 12px; }
+  .table tfoot tr:last-child th, .table tfoot tr:last-child td { font-size: 20px; }
+}
