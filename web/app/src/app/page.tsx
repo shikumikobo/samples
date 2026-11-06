@@ -51,7 +51,7 @@ export default function LoginPage() {
         <li>画面の上の「役割」で、別の人に切り替えて見比べる</li>
       </ol>
       {error && <p className="alert">読み込みに失敗しました：{error}</p>}
-      {!users && !error && <p className="muted">準備中…（初回は数秒かかります）</p>}
+      {!users && !error && <p className="muted">準備中…（初めて開くときは10秒ほどかかります）</p>}
       {users && (
         <>
           <section aria-labelledby="g-in">

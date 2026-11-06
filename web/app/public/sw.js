@@ -1,7 +1,7 @@
 // サービスワーカー：画面と静的ファイルを保存して、機内モードでも開けるようにする。
 // データはブラウザの中の DB（IndexedDB）にあるので、ここでは扱わない。
-const VERSION = 'site-manager-v2'; // 画面の作りを大きく変えたら数字を上げる（古い保存が消える）
-const PRECACHE = ['/', '/today/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+const VERSION = 'site-manager-v3'; // 画面の作りを大きく変えたら数字を上げる（古い保存が消える）
+const PRECACHE = ['/', '/today/', '/sites/', '/sites/detail/', '/schedule/', '/users/', '/portal/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(PRECACHE).catch(() => {})).then(() => self.skipWaiting()));
@@ -40,5 +40,20 @@ self.addEventListener('fetch', (e) => {
         return Response.error();
       }
     }),
+  );
+});
+
+// 初めて開いたときは、画面を読み込んだあとでサービスワーカーが有効になる。そのとき読み込んだファイルは、画面側から一覧を受け取って保存する（このあと機内モードでも開けるように）
+self.addEventListener('message', (e) => {
+  const d = e.data;
+  if (!d || d.type !== 'cache-urls' || !Array.isArray(d.urls)) return;
+  e.waitUntil(
+    caches.open(VERSION).then((cache) =>
+      Promise.all(
+        d.urls
+          .filter((u) => typeof u === 'string' && new URL(u, self.location.origin).origin === self.location.origin)
+          .map((u) => cache.add(u).catch(() => {})),
+      ),
+    ),
   );
 });
