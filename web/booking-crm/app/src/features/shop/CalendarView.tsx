@@ -73,9 +73,9 @@ function CalendarBody() {
   return (
     <>
       <div className="sh-bar">
-        <div className="seg" role="group" aria-label="表示の切り替え" style={{ background: 'var(--pine-soft)' }}>
+        <div className="seg" role="group" aria-label="表示の切り替え" style={{ background: 'var(--pri-soft)' }}>
           {(['day', 'week'] as const).map((v) => (
-            <button key={v} aria-pressed={view === v} onClick={() => setView(v)} style={{ color: 'var(--pine-dark)', ...(view === v ? { background: '#fff', fontWeight: 'bold' } : {}) }}>
+            <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>
               {v === 'day' ? '日' : '週'}
             </button>
           ))}

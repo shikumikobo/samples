@@ -17,6 +17,7 @@ import {
   type ServiceRow,
   type StaffRow,
 } from './queries';
+import { COLORS, FONTS } from '@/lib/theme';
 import { FlashView, LoadState, ShopPage, useAct, useShopLoad } from './ui';
 
 const DAYS = [
@@ -76,6 +77,8 @@ function SettingsBody() {
 
       <h2>休み</h2>
       <OffEdit staff={data.staff} off={data.off} today={data.today} busy={busy} onAdd={(sid, d, n) => act((tx) => addOff(tx, sid, d, n), '休みを足しました。')} onRemove={(sid, d) => act((tx) => removeOff(tx, sid, d), '休みを消しました。')} onError={(t) => setFlash({ kind: 'err', text: t })} />
+
+      <ThemeEdit />
     </>
   );
 }
@@ -180,5 +183,42 @@ function OffEdit({ staff, off, today, busy, onAdd, onRemove, onError }: { staff:
         {off.length === 0 && <li>これからの休みはありません。</li>}
       </ul>
     </div>
+  );
+}
+
+/** 見た目：色と見出しの書体。選ぶとすぐ画面に反映され、このブラウザの中に覚える（サロン・教室ごと） */
+function ThemeEdit() {
+  const { theme, setTheme, resetTheme, words: w } = useApp();
+  return (
+    <>
+      <h2>見た目</h2>
+      <div className="card">
+        <p className="sh-small">{w.modeName}の画面の色と、見出しの書体を選べます。{w.customer}の画面にも反映されます。</p>
+        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend>色</legend>
+          <div className="theme-pick">
+            {COLORS.map((c) => (
+              <label key={c.key}>
+                <input type="radio" name="theme-color" checked={theme.color === c.key} onChange={() => setTheme({ color: c.key })} />
+                <span className="dot" style={{ background: c.swatch }} aria-hidden="true" />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend>見出しの書体</legend>
+          <div className="theme-pick">
+            {FONTS.map((f) => (
+              <label key={f.key}>
+                <input type="radio" name="theme-font" checked={theme.font === f.key} onChange={() => setTheme({ font: f.key })} />
+                {f.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <button onClick={resetTheme}>{w.modeName}の標準の見た目に戻す</button>
+      </div>
+    </>
   );
 }

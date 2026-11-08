@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DEFAULT_MODE, MODE_KEY, getStoredMode, readPublic, resetDemo, type Role } from '@/lib/db';
 import { getWords, type Mode, type Words } from '@/lib/words';
+import { DEFAULT_THEME, applyTheme, clearTheme, loadTheme, saveTheme, type Theme } from '@/lib/theme';
 
 const ROLE_KEY = 'booking-crm.role';
 const CUSTOMER_KEY = 'booking-crm.customer';
@@ -19,7 +20,10 @@ interface AppState {
   customerId: string | null;
   customers: CustomerOption[];
   words: Words;
+  theme: Theme;
   busy: boolean;
+  setTheme: (t: Partial<Theme>) => void;
+  resetTheme: () => void;
   setMode: (m: Mode) => Promise<void>;
   setRole: (r: Role) => void;
   setCustomerId: (id: string) => void;
@@ -48,12 +52,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [customerId, setCustomerIdState] = useState<string | null>(null);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [busy, setBusy] = useState(false);
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME[DEFAULT_MODE]);
 
   useEffect(() => {
     const m = getStoredMode();
     const r = read(ROLE_KEY) === 'shop' ? 'shop' : 'customer';
     setModeState(m);
     setRoleState(r);
+    const th = loadTheme(m);
+    setThemeState(th);
+    applyTheme(th);
     document.documentElement.dataset.role = r;
     setReady(true);
     // お客さん側で「だれとして使うか」の一覧。DB に表がまだ無いときは空のまま
@@ -72,6 +80,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.role = r;
     setRoleState(r);
   }, []);
+
+  // 見た目（色・見出しの書体）：いまのモードに覚える。すぐ画面に反映する
+  const setTheme = useCallback(
+    (part: Partial<Theme>) => {
+      const next = { ...theme, ...part };
+      saveTheme(mode, next);
+      applyTheme(next);
+      setThemeState(next);
+    },
+    [mode, theme],
+  );
+  const resetTheme = useCallback(() => {
+    clearTheme(mode);
+    const th = loadTheme(mode);
+    applyTheme(th);
+    setThemeState(th);
+  }, [mode]);
 
   const setCustomerId = useCallback((id: string) => {
     write(CUSTOMER_KEY, id);
@@ -102,8 +127,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [mode]);
 
   const value = useMemo<AppState>(
-    () => ({ ready, mode, role, customerId, customers, words: getWords(mode), busy, setMode, setRole, setCustomerId, reset }),
-    [ready, mode, role, customerId, customers, busy, setMode, setRole, setCustomerId, reset],
+    () => ({ ready, mode, role, customerId, customers, words: getWords(mode), theme, busy, setMode, setRole, setCustomerId, setTheme, resetTheme, reset }),
+    [ready, mode, role, customerId, customers, theme, busy, setMode, setRole, setCustomerId, setTheme, resetTheme, reset],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

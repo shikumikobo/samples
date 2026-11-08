@@ -6,26 +6,26 @@
 .sh-field input, .sh-field select, .sh-field textarea { color: var(--ink); font-size: 16px; }
 .sh-field.inline { flex-direction: row; align-items: center; gap: 6px; }
 .sh-flash { padding: 8px 12px; border-radius: 10px; margin: 0 0 var(--gap); }
-.sh-flash.ok { background: var(--pine-soft); color: var(--pine-dark); }
+.sh-flash.ok { background: var(--pri-soft); color: var(--pri-dark); }
 .sh-flash.err { background: var(--danger-soft); color: var(--danger); }
 .sh-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: var(--gap); }
 .sh-stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
 .sh-stat b { display: block; font-size: 1.5em; line-height: 1.2; font-family: var(--num); }
 .sh-stat span { font-size: .8em; color: var(--muted); }
-.sh-status { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--pine-soft); color: var(--pine-dark); white-space: nowrap; }
+.sh-status { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--pri-soft); color: var(--pri-dark); white-space: nowrap; }
 .sh-status.visited { background: #d9efe0; color: var(--ok); }
 .sh-status.noshow { background: var(--danger-soft); color: var(--danger); }
 .sh-status.canceled { background: #eee; color: var(--muted); }
-.sh-trial { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--clay-soft); color: var(--clay); white-space: nowrap; }
+.sh-trial { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--acc-soft); color: var(--acc); white-space: nowrap; }
 .sh-caution { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); white-space: nowrap; }
 .sh-cols { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
 .sh-col { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px; }
-.sh-col > h3 { margin: 0 0 6px; font-size: 1em; color: var(--pine-dark); }
+.sh-col > h3 { margin: 0 0 6px; font-size: 1em; color: var(--pri-dark); }
 .sh-col > h3 small { color: var(--muted); font-weight: normal; margin-left: 6px; }
 .sh-week { display: grid; gap: 8px; grid-template-columns: 1fr; }
 @media (min-width: 900px) { .sh-week { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 .sh-item { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px; background: #fff; }
-.sh-item.sel { border-color: var(--pine); box-shadow: 0 0 0 2px var(--pine-soft); }
+.sh-item.sel { border-color: var(--pri); box-shadow: 0 0 0 2px var(--pri-soft); }
 .sh-item.done { background: #f4f8f5; }
 .sh-item.gone { opacity: .6; }
 .sh-item .t { font-family: var(--num); font-weight: bold; }
@@ -36,7 +36,7 @@
 .sh-session { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 8px; margin-bottom: 8px; }
 .sh-session > header { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; margin-bottom: 4px; }
 .sh-off { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 2px 8px; font-size: .85em; display: inline-block; }
-.sh-panel { background: var(--card); border: 2px solid var(--pine); border-radius: 14px; padding: 10px 12px; margin-bottom: var(--gap); }
+.sh-panel { background: var(--card); border: 2px solid var(--pri); border-radius: 14px; padding: 10px 12px; margin-bottom: var(--gap); }
 .sh-panel > header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .sh-panel h2 { margin: 0; }
 .sh-slotlist { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-top: 6px; }

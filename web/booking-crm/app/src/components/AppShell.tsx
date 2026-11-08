@@ -34,8 +34,57 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <header className="top">
-        <div className="top-row">
+      <div className="shell-top">
+        <aside className="demo-note" aria-label="デモの案内">
+          <span>架空のお店のデモです。データはこのブラウザの中にだけあります</span>
+          <div className="demo-ctl">
+            <div className="switches">
+              <div className="seg" role="group" aria-label="サロンか教室か">
+                {MODES.map((m) => (
+                  <button key={m} aria-pressed={m === mode} disabled={busy} onClick={() => app.setMode(m)}>
+                    {WORDS[m].modeName}
+                  </button>
+                ))}
+              </div>
+              <div className="seg" role="group" aria-label="お客さんかお店か">
+                {(['customer', 'shop'] as const).map((r) => (
+                  <button key={r} aria-pressed={r === role} onClick={() => pickRole(r)}>
+                    {r === 'customer' ? w.customer : w.shopSide}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {role === 'customer' && app.customers.length > 0 && (
+              <label className="who">
+                <span>{w.customer}として使う人</span>
+                <select value={app.customerId ?? ''} onChange={(e) => app.setCustomerId(e.target.value)}>
+                  {app.customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {asking ? (
+              <span className="row">
+                <span>{w.modeName}の架空のデータを、最初の状態に戻します。</span>
+                <button className="primary" disabled={busy} onClick={() => app.reset()}>
+                  {busy ? '戻しています…' : '戻す'}
+                </button>
+                <button disabled={busy} onClick={() => setAsking(false)}>
+                  やめる
+                </button>
+              </span>
+            ) : (
+              <button onClick={() => setAsking(true)} disabled={busy}>
+                最初に戻す
+              </button>
+            )}
+          </div>
+        </aside>
+
+        <header className="top">
           <Link href="/" className="brand" aria-label="最初の画面へ">
             <span className="brand-mark" aria-hidden="true">予</span>
             <span>
@@ -43,62 +92,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               <small>見本</small>
             </span>
           </Link>
-          <div className="switches">
-            <div className="seg" role="group" aria-label="サロンか教室か">
-              {MODES.map((m) => (
-                <button key={m} aria-pressed={m === mode} disabled={busy} onClick={() => app.setMode(m)}>
-                  {WORDS[m].modeName}
-                </button>
-              ))}
-            </div>
-            <div className="seg" role="group" aria-label="お客さんかお店か">
-              {(['customer', 'shop'] as const).map((r) => (
-                <button key={r} aria-pressed={r === role} onClick={() => pickRole(r)}>
-                  {r === 'customer' ? w.customer : w.shopSide}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        {role === 'customer' && app.customers.length > 0 && (
-          <label className="who">
-            <span>{w.customer}として使う人</span>
-            <select value={app.customerId ?? ''} onChange={(e) => app.setCustomerId(e.target.value)}>
-              {app.customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <nav className="nav" aria-label="メニュー">
-          {nav.map((n) => (
-            <Link key={n.href} href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>
-              {w[n.key]}
-            </Link>
-          ))}
-        </nav>
-      </header>
-
-      <aside className="demo-note" aria-label="デモの案内">
-        <span>架空のお店のデモです。データはこのブラウザの中にだけあります</span>
-        {asking ? (
-          <span className="row">
-            <span>{w.modeName}の架空のデータを、最初の状態に戻します。</span>
-            <button className="primary" disabled={busy} onClick={() => app.reset()}>
-              {busy ? '戻しています…' : '戻す'}
-            </button>
-            <button disabled={busy} onClick={() => setAsking(false)}>
-              やめる
-            </button>
-          </span>
-        ) : (
-          <button onClick={() => setAsking(true)} disabled={busy}>
-            最初に戻す
-          </button>
-        )}
-      </aside>
+          <p className="hero-sub">ご予約はこちらから。お支払いは当日お店でお願いします</p>
+          <nav className="nav" aria-label="メニュー">
+            {nav.map((n) => (
+              <Link key={n.href} href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>
+                {w[n.key]}
+              </Link>
+            ))}
+          </nav>
+        </header>
+      </div>
 
       <main className="main">{app.ready ? children : <p className="muted">読み込み中…</p>}</main>
     </>

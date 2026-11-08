@@ -21,7 +21,7 @@ Booking CRM は静的書き出し（`output: 'export'`）なので、ビルド�
 3. **Cloudflare Pages のプロジェクトを作る**（**人がする**。1-59）
    - Cloudflare のダッシュボード → Workers & Pages → Create → Pages → Connect to Git（shikumikobo の GitHub と連携。1本目と同じ連携でよい）
    - リポジトリ：`shikumikobo/samples`、ブランチ：`main`
-   - プロジェクト名：`booking-crm`（URL は `booking-crm.pages.dev`。1本目のプロジェクトとは別にする）
+   - プロジェクト名：`booking-crm`（`booking-crm` は他で使われていたため、URL は `booking-crm-7ge.pages.dev` になった。1本目のプロジェクトとは別にする）
    - Framework preset：`None`（または Next.js の「Static HTML Export」）
    - **ルートディレクトリ（Root directory）：`web/booking-crm/app`**
    - **ビルドコマンド：`npm ci && npm run build`**
@@ -31,11 +31,11 @@ Booking CRM は静的書き出し（`output: 'export'`）なので、ビルド�
    - 1本目のプロジェクト（ルート `web/app`）には触らない。同じリポジトリを2つのプロジェクトが見るが、どちらも自分のルートのビルドだけを使う（`web/` のどこかを更新すると、両方のビルドが走る）
 4. **カスタムドメインを付ける**（人）
    - プロジェクト → Custom domains → Set up a domain → `booking-crm.shikumikobo.com`
-   - ドメインは同じ Cloudflare のアカウントにあるので、CNAME（`booking-crm` → `booking-crm.pages.dev`）と証明書が自動で付く。1〜数分で開ける
+   - ドメインは同じ Cloudflare のアカウントにあるので、CNAME（`booking-crm` → `booking-crm-7ge.pages.dev`）と証明書が自動で付く。1〜数分で開ける
    - 実績のページ（`shikumikobo.com`）はこれまでどおり GitHub Pages（A レコード）。サブドメインを足すだけなので、そちらと1本目には影響しない
 5. **公開後の確認**（AI または人）
    - `https://booking-crm.shikumikobo.com/` が開き、サロン／教室とお客さん／お店の選択画面が出る（初回は DB の準備で数秒）
-   - `https://booking-crm.shikumikobo.com/sw.js` が `Cache-Control: no-cache`、`/_next/static/…` が `immutable` で返る（ブラウザの開発者ツール → Network）
+   - `pages.dev` の URL では `/sw.js` が `Cache-Control: no-cache` で返る。独自ドメインでは `max-age=14400`（1本目と同じ。ドメイン側のキャッシュの設定による）で、`cf-cache-status: REVALIDATED`。更新の反映は最大4時間遅れることがある
    - **画面の確認スクリプト（AI。`app/` で。Playwright が要る）**
      ```bash
      cd samples/web/booking-crm/app
