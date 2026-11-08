@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { q, resetDemo, withRole } from '@/lib/db';
 import { errorCode } from '@/lib/errors';
-import { cancelReservation, changeSlot, listMine, listServices, listStaff, loadSlots, registerCustomer, reserveSlot, type ServiceRow } from './api';
+import { PhoneTakenError, cancelReservation, changeSlot, findCustomerByPhone, listMine, listServices, listStaff, loadSlots, registerCustomer, reserveSlot, type ServiceRow } from './api';
 import { isPastDeadline, type Slot } from './format';
 
 let seq = 0;
@@ -79,16 +79,49 @@ describe('サロン：予約→変更→キャンセル', () => {
     expect(await fail(as(y, (tx) => reserveSlot(tx, x, svc.id, slot)))).toBe('FORBIDDEN');
   }, 60000);
 
-  it('体験（初回限定）の二重予約は TRIAL_USED で断られ、同じ電話番号の別の登録でも断られる', async () => {
+  it('体験（初回限定）の二重予約は TRIAL_USED で断られ、同じメールアドレスの別の登録でも断られる', async () => {
     const c = await newCustomer();
     const trial = (await as(c, (tx) => listServices(tx))).find((s) => s.is_trial)!;
     const slots = firstDayAfter(await as(c, (tx) => loadSlots(tx, trial.id, null)), '2026-11-11');
     await as(c, (tx) => reserveSlot(tx, c, trial.id, slots[0]));
     const other = slots.find((s) => s.starts_at.slice(0, 10) !== slots[0].starts_at.slice(0, 10))!;
     expect(await fail(as(c, (tx) => reserveSlot(tx, c, trial.id, other)))).toBe('TRIAL_USED');
-    // 同じ電話番号で、もう一度「はじめての方」として登録しても同じ人として扱われる
-    const again = await withRole('shop', null, (tx) => registerCustomer(tx, { name: '別名', kana: '', phone: `080-9999-${String(seq).padStart(4, '0')}`, email: 'other@example.com' }));
+    // 電話番号は別でも、メールアドレスが同じなら、同じ人として扱われる
+    const again = await withRole('shop', null, (tx) => registerCustomer(tx, { name: '別名', kana: '', phone: '080-8888-0001', email: `t${seq}@example.com` }));
     expect(await fail(as(again, (tx) => reserveSlot(tx, again, trial.id, other)))).toBe('TRIAL_USED');
+  }, 60000);
+
+  it('はじめての方の登録：同じ電話番号（ハイフン・空白の違いも）は PHONE_TAKEN で、すでにいる人の id が分かる。電話が空なら確認しない', async () => {
+    const c = await newCustomer();
+    const phone = `080-9999-${String(seq).padStart(4, '0')}`;
+    const reg = (v: { name: string; phone: string }) => withRole('shop', null, (tx) => registerCustomer(tx, { kana: '', email: '', ...v }));
+    for (const p of [phone, phone.replace(/-/g, ''), phone.replace(/-/g, ' ')]) {
+      try {
+        await reg({ name: '同じ電話', phone: p });
+        throw new Error('登録できてしまった');
+      } catch (e) {
+        expect(errorCode(e)).toBe('PHONE_TAKEN');
+        expect(e).toBeInstanceOf(PhoneTakenError);
+        expect((e as PhoneTakenError).existingId).toBe(c);
+      }
+    }
+    expect(await withRole('shop', null, (tx) => findCustomerByPhone(tx, phone))).toMatchObject({ id: c, name: expect.stringContaining('テスト') });
+    // 電話が空の人は、何人でも登録できる（お店側の任意入力）
+    const a = await reg({ name: '電話なし1', phone: '' });
+    const b = await reg({ name: '電話なし2', phone: '' });
+    expect(a).not.toBe(b);
+    expect(await withRole('shop', null, (tx) => findCustomerByPhone(tx, ''))).toBeNull();
+  }, 60000);
+
+  it('お客さんのキャンセルの理由は、お店のメモに「【お客さんの理由】」つきで残り、お客さんの一覧には出ない', async () => {
+    const c = await newCustomer();
+    const svc = (await as(c, (tx) => listServices(tx))).find((s) => !s.is_trial)!;
+    const slot = firstDayAfter(await as(c, (tx) => loadSlots(tx, svc.id, null)), '2026-11-11')[0];
+    const id = await as(c, (tx) => reserveSlot(tx, c, svc.id, slot));
+    await as(c, (tx) => cancelReservation(tx, id, '体調・都合'));
+    const note = (await withRole('shop', null, (tx) => q<{ note: string }>(tx, `select note from reservations where id = $1`, [id])))[0]?.note;
+    expect(note).toBe('【お客さんの理由】体調・都合');
+    expect(JSON.stringify(await as(c, (tx) => listMine(tx)))).not.toContain('体調');
   }, 60000);
 
   it('同じ日の3件目は DAY_LIMIT、直前の枠は一覧に出ない', async () => {

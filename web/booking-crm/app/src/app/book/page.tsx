@@ -6,7 +6,7 @@ import { withRole } from '@/lib/db';
 import { errorMessage } from '@/lib/errors';
 import { listServices, type ServiceRow } from '@/features/booking/api';
 import { formatDuration, formatYen } from '@/features/booking/format';
-import { saveDraft } from '@/features/booking/draft';
+import { saveDraft, takeNotice } from '@/features/booking/draft';
 import { bookingWords } from '@/features/booking/words';
 import { Steps } from '@/features/booking/Steps';
 import '@/features/booking/booking.css';
@@ -17,6 +17,11 @@ export default function Page() {
   const router = useRouter();
   const [services, setServices] = useState<ServiceRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNotice(takeNotice());
+  }, []);
 
   useEffect(() => {
     if (!customerId) return;
@@ -38,6 +43,11 @@ export default function Page() {
     <section className="page customer">
       <Steps current={1} service={w.service} />
       <h1>{w.page_book}</h1>
+      {notice && (
+        <p className="bk-info" role="status">
+          {notice}
+        </p>
+      )}
       <p className="lead">{w.service}をお選びください。お支払いは当日お店でお願いします。</p>
       {error && (
         <p className="bk-alert" role="alert">

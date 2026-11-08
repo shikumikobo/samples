@@ -12,7 +12,7 @@ begin
   else
     act := case
       when old.status <> new.status then
-        case new.status when 'canceled' then 'cancel' when 'visited' then 'visit' when 'noshow' then 'noshow' else 'update' end
+        case new.status when 'canceled' then 'cancel' when 'visited' then 'visit' when 'noshow' then 'noshow' when 'booked' then 'restore' else 'update' end
       when old.staff_id <> new.staff_id or old.starts_at <> new.starts_at or old.session_id is distinct from new.session_id then 'change'
       else 'update' end;
     insert into history (at, actor, action, reservation_id, before, after)

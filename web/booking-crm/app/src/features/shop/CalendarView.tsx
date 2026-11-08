@@ -1,11 +1,16 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useApp } from '@/lib/app-state';
 import { addDays, formatDay } from '@/lib/demo-date';
+import { findCustomerByPhone, registerCustomer } from '@/features/booking/api';
+import { withRole } from '@/lib/db';
+import { FreeGrid } from './FreeGrid';
+import { EMPTY_WALKIN, NEW_CUSTOMER, validateWalkIn, type WalkIn, type WalkInErrors } from './walkin';
 import { byTime, countDay, dayOf, groupBy, range, weekDays, yen, type Rsv } from './lib';
 import { SHOP_WORDS, statusLabel } from './words';
 import {
-  cancelReservation,
+  setStatus,
   changeTo,
   loadCustomers,
   loadOff,
@@ -107,8 +112,12 @@ function CalendarBody() {
           day={cur < today ? today : cur}
           busy={busy}
           onClose={() => setCreating(false)}
-          onCreate={async (cid, svc, slot) => {
-            const ok = await act((tx) => reserveFor(tx, cid, svc, slot), `${sw.rsv}を入れました。`);
+          onCreate={async (cid, svc, slot, walkIn) => {
+            // はじめての方：登録と予約を1つの処理で行う（予約が取れなければ、登録も取り消される）
+            const ok = await act(
+              async (tx) => reserveFor(tx, walkIn ? await registerCustomer(tx, walkIn) : cid, svc, slot),
+              walkIn ? `${walkIn.name.trim()} さんを登録して、${sw.rsv}を入れました。` : `${sw.rsv}を入れました。`,
+            );
             if (ok) {
               setCreating(false);
               setDate(slot.starts_at.slice(0, 10));
@@ -227,6 +236,7 @@ function Item({ r, selected, onSelect, hideTime, showStaff }: { r: Rsv; selected
         </span>
         <span className="sub">{r.service_name}{showStaff && `　${r.staff_name}`}</span>
       </button>
+      <Link className="sh-karte-link" href={`/customers/detail/?id=${r.customer_id}`} aria-label={`${r.customer_name}のカルテを開く`}>カルテ</Link>
     </div>
   );
 }
@@ -238,6 +248,7 @@ function EditPanel({ r, staff, services, busy, onClose, act, setFlash }: { r: Rs
   const { words: w, mode } = useApp();
   const sw = SHOP_WORDS[mode];
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [reason, setReason] = useState('');
   const [showChange, setShowChange] = useState(false);
   const svc = services.find((s) => s.id === r.service_id);
   const editable = r.status === 'booked';
@@ -245,7 +256,10 @@ function EditPanel({ r, staff, services, busy, onClose, act, setFlash }: { r: Rs
     <section className="sh-panel" aria-label={`${sw.rsv}の内容`}>
       <header>
         <h2>{r.customer_name}　<StatusBadge r={r} label={statusLabel(w, r.status)} /></h2>
-        <button onClick={onClose}>閉じる</button>
+        <span className="row">
+          <Link className="sh-karte-btn" href={`/customers/detail/?id=${r.customer_id}`}>{w.customer}のカルテを開く</Link>
+          <button onClick={onClose}>閉じる</button>
+        </span>
       </header>
       <p>
         <span className="num">{formatDay(dayOf(r.starts_at))} {range(r.starts_at, r.ends_at)}</span>　{r.staff_name}<br />
@@ -258,10 +272,16 @@ function EditPanel({ r, staff, services, busy, onClose, act, setFlash }: { r: Rs
           <button disabled={busy} onClick={() => act((tx) => markNoshow(tx, r.id), `${w.noshow}にしました。`)}>{w.noshow}</button>
           <button disabled={busy} onClick={() => setShowChange((x) => !x)} aria-expanded={showChange}>日時・{w.staff}を変更</button>
           {confirmCancel ? (
-            <>
-              <button className="danger" disabled={busy} onClick={async () => { if (await act((tx) => cancelReservation(tx, r.id), `${sw.rsv}をキャンセルしました。`)) onClose(); }}>キャンセルする</button>
-              <button onClick={() => setConfirmCancel(false)}>やめる</button>
-            </>
+            <div className="sh-cancel-box">
+              <label className="sh-field">
+                <span>キャンセルの理由（任意。{w.customer}には見えません）</span>
+                <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="例：体調不良のため、前日に連絡があった" />
+              </label>
+              <div className="row">
+                <button className="danger" disabled={busy} onClick={async () => { if (await act((tx) => setStatus(tx, r.id, 'canceled', reason.trim() || null), `${sw.rsv}をキャンセルしました。`)) onClose(); }}>キャンセルを確定する</button>
+                <button onClick={() => { setConfirmCancel(false); setReason(''); }}>やめる</button>
+              </div>
+            </div>
           ) : (
             <button className="danger" disabled={busy} onClick={() => setConfirmCancel(true)}>{sw.rsv}をキャンセル</button>
           )}
@@ -272,26 +292,44 @@ function EditPanel({ r, staff, services, busy, onClose, act, setFlash }: { r: Rs
       {editable && showChange && (
         <>
           <h2>新しい日時を選ぶ</h2>
-          <SlotPicker
-            service={svc}
-            staff={staff}
-            staffId={null}
-            initialDay={dayOf(r.starts_at)}
-            actionLabel="変更先"
-            disabled={busy}
-            onPick={async (slot) => {
-              setFlash(null);
-              if (await act((tx) => changeTo(tx, r.id, slot), `${sw.rsv}を変更しました。`)) setShowChange(false);
-            }}
-          />
+          {svc?.kind === 'timed' ? (
+            <FreeGrid
+              service={svc}
+              staff={staff}
+              staffId={null}
+              initialDay={dayOf(r.starts_at)}
+              actionLabel="この時間に変更する"
+              disabled={busy}
+              excludeId={r.id}
+              onPick={async (slot) => {
+                setFlash(null);
+                if (await act((tx) => changeTo(tx, r.id, slot), `${sw.rsv}を変更しました。`)) setShowChange(false);
+              }}
+            />
+          ) : (
+            <SlotPicker
+              service={svc}
+              staff={staff}
+              staffId={null}
+              initialDay={dayOf(r.starts_at)}
+              actionLabel="変更先"
+              disabled={busy}
+              onPick={async (slot) => {
+                setFlash(null);
+                if (await act((tx) => changeTo(tx, r.id, slot), `${sw.rsv}を変更しました。`)) setShowChange(false);
+              }}
+            />
+          )}
         </>
       )}
     </section>
   );
 }
 
-// ── 予約の作成（電話受付：お客さんを選んで入れる） ──
-function CreatePanel({ services, staff, day, busy, onClose, onCreate }: { services: ServiceRow[]; staff: StaffRow[]; day: string; busy: boolean; onClose: () => void; onCreate: (customerId: string, serviceId: string, slot: { staff_id: string; starts_at: string; session_id: string | null }) => void }) {
+// ── 予約の作成（電話受付：お客さんを選ぶ、またははじめての方を登録して入れる） ──
+type NewSlot = { staff_id: string; starts_at: string; session_id: string | null };
+
+function CreatePanel({ services, staff, day, busy, onClose, onCreate }: { services: ServiceRow[]; staff: StaffRow[]; day: string; busy: boolean; onClose: () => void; onCreate: (customerId: string, serviceId: string, slot: NewSlot, walkIn: WalkIn | null) => void }) {
   const { words: w, mode } = useApp();
   const sw = SHOP_WORDS[mode];
   const customers = useShopLoad((tx) => loadCustomers(tx), []);
@@ -299,13 +337,57 @@ function CreatePanel({ services, staff, day, busy, onClose, onCreate }: { servic
   const [cid, setCid] = useState('');
   const [sid, setSid] = useState(services[0]?.id ?? '');
   const [stf, setStf] = useState('');
+  const [form, setForm] = useState<WalkIn>(EMPTY_WALKIN);
+  const [errors, setErrors] = useState<WalkInErrors>({});
+  const [dup, setDup] = useState<{ id: string; name: string } | null>(null);
   const list = (customers.data ?? []).filter((c) => !q || c.name.includes(q) || c.kana.includes(q) || c.phone.replace(/-/g, '').includes(q.replace(/-/g, '')));
   const svc = services.find((s) => s.id === sid);
+  const isNew = cid === NEW_CUSTOMER;
+  const ready = isNew ? form.name.trim() !== '' : cid !== '';
+  const setF = (k: keyof WalkIn) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
+
+  // 電話番号が、すでにいるお客さんと同じか（空なら確認しない）。同じなら、登録せずに知らせる
+  async function checkDup(): Promise<boolean> {
+    const phone = form.phone.trim();
+    if (!phone) {
+      setDup(null);
+      return false;
+    }
+    try {
+      const d = await withRole('shop', null, (tx) => findCustomerByPhone(tx, phone));
+      setDup(d);
+      return !!d;
+    } catch {
+      return false; // 確認できなくても、登録のときに DB 側でも確かめる
+    }
+  }
+  function chooseExisting() {
+    if (!dup) return;
+    setCid(dup.id);
+    setDup(null);
+    setForm(EMPTY_WALKIN);
+  }
+
+  async function pick(slot: NewSlot) {
+    if (isNew) {
+      const errs = validateWalkIn(form);
+      setErrors(errs);
+      if (Object.keys(errs).length > 0) return;
+      if (await checkDup()) return;
+      onCreate('', sid, slot, form);
+    } else {
+      onCreate(cid, sid, slot, null);
+    }
+  }
+
   return (
     <section className="sh-panel" aria-label={sw.newRsv}>
       <header>
         <h2>{sw.newRsv}</h2>
-        <button onClick={onClose}>閉じる</button>
+        <span className="row">
+          {cid && !isNew && <Link className="sh-karte-btn" href={`/customers/detail/?id=${cid}`}>{w.customer}のカルテを開く</Link>}
+          <button onClick={onClose}>閉じる</button>
+        </span>
       </header>
       <div className="sh-grid2">
         <label className="sh-field">
@@ -316,6 +398,7 @@ function CreatePanel({ services, staff, day, busy, onClose, onCreate }: { servic
           <span>{w.customer}</span>
           <select value={cid} onChange={(e) => setCid(e.target.value)}>
             <option value="">選んでください</option>
+            <option value={NEW_CUSTOMER}>はじめての方（新しく登録）</option>
             {list.map((c) => <option key={c.id} value={c.id}>{c.name}（{c.phone}）</option>)}
           </select>
         </label>
@@ -333,9 +416,48 @@ function CreatePanel({ services, staff, day, busy, onClose, onCreate }: { servic
           </select>
         </label>
       </div>
-      {!cid && <p className="muted">先に{w.customer}を選ぶと、日時を選べます。</p>}
-      {cid && (
-        <SlotPicker key={`${sid}-${stf}`} service={svc} staff={staff} staffId={stf || null} initialDay={day} actionLabel="この日時で入れる" disabled={busy} onPick={(slot) => onCreate(cid, sid, slot)} />
+      {isNew && (
+        <fieldset className="sh-newcust">
+          <legend>はじめての方の情報（お名前だけ必須。電話・メールは分かれば）</legend>
+          <div className="sh-grid2">
+            <label className="sh-field">
+              <span>お名前（必須）</span>
+              <input value={form.name} onChange={setF('name')} aria-invalid={!!errors.name} autoComplete="off" />
+              {errors.name && <span className="sh-err">{errors.name}</span>}
+            </label>
+            <label className="sh-field">
+              <span>ふりがな</span>
+              <input value={form.kana} onChange={setF('kana')} autoComplete="off" />
+            </label>
+            <label className="sh-field">
+              <span>電話番号（任意）</span>
+              <input type="tel" inputMode="tel" value={form.phone} onChange={(e) => { setF('phone')(e); setDup(null); }} onBlur={() => void checkDup()} aria-invalid={!!errors.phone || !!dup} autoComplete="off" />
+              {errors.phone && <span className="sh-err">{errors.phone}</span>}
+            </label>
+            <label className="sh-field">
+              <span>メールアドレス（任意）</span>
+              <input type="email" inputMode="email" value={form.email} onChange={setF('email')} aria-invalid={!!errors.email} autoComplete="off" />
+              {errors.email && <span className="sh-err">{errors.email}</span>}
+            </label>
+          </div>
+          {dup && (
+            <div className="sh-dup" role="alert">
+              <strong>同じ電話番号の方がいます：{dup.name} さん</strong>
+              <span className="row">
+                <button className="primary" onClick={chooseExisting}>この方で予約する</button>
+                <span className="sh-small">別の方なら、電話番号を直してください。</span>
+              </span>
+            </div>
+          )}
+          <p className="sh-small">日時を選んで確定すると、このお名前で{w.customer}を登録して、{sw.rsv}を入れます。</p>
+        </fieldset>
+      )}
+      {!ready && <p className="muted">先に{w.customer}を選ぶ（はじめての方は、お名前を入れる）と、日時を選べます。</p>}
+      {ready && svc && svc.kind === 'timed' && (
+        <FreeGrid service={svc} staff={staff} staffId={stf || null} initialDay={day} actionLabel="この時間で予約する" disabled={busy} onPick={pick} />
+      )}
+      {ready && svc && svc.kind !== 'timed' && (
+        <SlotPicker key={`${sid}-${stf}`} service={svc} staff={staff} staffId={stf || null} initialDay={day} actionLabel="この日時で入れる" disabled={busy} onPick={pick} />
       )}
     </section>
   );

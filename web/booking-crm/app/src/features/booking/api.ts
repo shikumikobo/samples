@@ -67,8 +67,8 @@ export async function changeSlot(tx: Tx, reservationId: string, slot: Slot): Pro
   const r = await q<{ id: string }>(tx, `select change_reservation($1, $2, $3::timestamptz, $4) as id`, [reservationId, slot.staff_id, slot.starts_at, slot.session_id]);
   return r[0].id;
 }
-export async function cancelReservation(tx: Tx, reservationId: string): Promise<string> {
-  const r = await q<{ id: string }>(tx, `select cancel_reservation($1) as id`, [reservationId]);
+export async function cancelReservation(tx: Tx, reservationId: string, reason: string | null = null): Promise<string> {
+  const r = await q<{ id: string }>(tx, `select cancel_reservation($1, $2) as id`, [reservationId, reason]);
   return r[0].id;
 }
 
@@ -89,7 +89,29 @@ export const getNow = (tx: Tx) => demoNow(tx);
  * 注：customer の役割には customers への insert も登録用の関数も無い（policies.sql）。
  * 見本では、この1か所だけ shop の役割で行を足している（docs/contract.md「変更の依頼」。DB 側に register_customer が付いたら、customer の役割に置き換える）。
  */
+/** 電話番号が、すでにいるお客さんと同じだったとき（登録しない）。existingId はお店側の画面で「この方で予約する」に使う */
+export class PhoneTakenError extends Error {
+  existingId: string;
+  constructor(existingId: string) {
+    super('PHONE_TAKEN: この電話番号は、すでに登録されています。');
+    this.name = 'PhoneTakenError';
+    this.existingId = existingId;
+  }
+}
+
+/** 同じ電話番号（数字だけにして比べる）の、いまのお客さん。いなければ null。電話が空なら確認しない。shop の役割で呼ぶ */
+export async function findCustomerByPhone(tx: Tx, phone: string): Promise<{ id: string; name: string } | null> {
+  if (!phone.replace(/[^0-9]/g, '')) return null;
+  const r = await q<{ id: string | null }>(tx, `select find_customer_by_phone($1) as id`, [phone]);
+  const id = r[0]?.id;
+  if (!id) return null;
+  const c = await q<{ name: string }>(tx, `select name from customers where id = $1`, [id]);
+  return { id, name: c[0]?.name ?? '' };
+}
+
 export async function registerCustomer(tx: Tx, v: { name: string; kana: string; phone: string; email: string }): Promise<string> {
+  const dup = await findCustomerByPhone(tx, v.phone);
+  if (dup) throw new PhoneTakenError(dup.id);
   const r = await q<{ id: string }>(
     tx,
     `with nxt as (select coalesce(max(substring(id from 2)::int), 0) + 1 as n from customers where id ~ '^c[0-9]+$')

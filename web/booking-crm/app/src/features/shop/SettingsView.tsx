@@ -54,7 +54,7 @@ function SettingsBody() {
       <h2>{w.service}と料金</h2>
       <p className="sh-small">金額は内税です。変えても、すでに入っている予約の金額は変わりません。</p>
       <div className="card sh-tablewrap">
-        <table className="sh-table">
+        <table className="sh-table sh-service">
           <thead>
             <tr>
               <th>名前</th><th>料金（円）</th><th>所要（分）</th><th>目安の日数</th><th>{w.trial}</th><th>初回限定</th><th>受付中</th><th></th>
@@ -69,7 +69,7 @@ function SettingsBody() {
       </div>
 
       <h2>営業時間（{w.staff}ごと）</h2>
-      <div className="sh-cols">
+      <div className="sh-cols sh-hours">
         {data.staff.map((s) => (
           <HoursEdit key={`${s.id}-${JSON.stringify(data.hours.filter((h) => h.staff_id === s.id))}`} staff={s} hours={data.hours.filter((h) => h.staff_id === s.id)} busy={busy} onError={(t) => setFlash({ kind: 'err', text: t })} onSave={(rows) => act((tx) => saveHours(tx, s.id, rows), `${s.name}の営業時間を保存しました。`)} />
         ))}
@@ -137,8 +137,8 @@ function HoursEdit({ staff, hours, busy, onSave, onError }: { staff: StaffRow; h
     <section className="sh-col" aria-label={`${staff.name}の営業時間`}>
       <h3>{staff.name}<small>{staff.title}</small></h3>
       {DAYS.map((d) => (
-        <div className="row" key={d.wd} style={{ marginBottom: 4 }}>
-          <label className="sh-check" style={{ width: 70 }}>
+        <div className="sh-hours-row" key={d.wd}>
+          <label className="sh-check sh-day">
             <input type="checkbox" checked={v[d.wd].on} onChange={(e) => setV({ ...v, [d.wd]: { ...v[d.wd], on: e.target.checked } })} aria-label={`${staff.name} ${d.label}曜は営業`} />
             {d.label}
           </label>

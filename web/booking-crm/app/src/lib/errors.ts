@@ -9,6 +9,8 @@ export const ERROR_CODES = [
   'DEADLINE_PASSED',
   'NOT_FOUND',
   'FORBIDDEN',
+  'SLOT_TAKEN',
+  'PHONE_TAKEN',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -22,6 +24,8 @@ export const ERROR_TEXT: Record<ErrorCode, string> = {
   DEADLINE_PASSED: '変更・キャンセルの期限（前日の終わり）を過ぎています。お店にご連絡ください。',
   NOT_FOUND: '該当するデータが見つかりません。',
   FORBIDDEN: 'この操作はできません。',
+  SLOT_TAKEN: 'この時間（枠）には、もう別の予約が入っているため、元に戻せません。',
+  PHONE_TAKEN: 'この電話番号は、すでに登録されています。',
 };
 
 /** エラー（または文字列）の先頭のコードを取り出す。コードがなければ null */

@@ -54,3 +54,55 @@
 .bk-modes { display: flex; gap: 8px; margin-bottom: var(--gap); }
 .bk-modes button { flex: 1; }
 .bk-modes button[aria-pressed='true'] { background: var(--pri-soft); border: 2px solid var(--pri); font-weight: bold; }
+
+/* 日時の表（お客さん用）：縦＝時間（15分）、横＝担当者。選んだ時間は表の上に固定で出す */
+.cg-sum { position: sticky; top: 0; z-index: 6; display: flex; gap: 10px 14px; align-items: center; justify-content: space-between; flex-wrap: nowrap; background: var(--card); border: 2px solid var(--pri); border-radius: 14px; padding: 8px 12px; margin-bottom: 8px; min-height: 64px; }
+.cg-sum .txt { flex: 1 1 auto; min-width: 0; }
+.cg-sum .txt p { margin: 0; font-size: .95em; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cg-sum .txt p.err { color: var(--danger); }
+.cg-sum .bk-btn { flex: 0 0 auto; white-space: nowrap; }
+.cg-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; list-style: none; margin: 0 0 8px; padding: 0; font-size: 12px; color: var(--muted); }
+.cg-legend li { display: inline-flex; align-items: center; gap: 4px; }
+.cg-legend .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
+.cg-legend .sw.free { background: #fff; }
+.cg-legend .sw.busy { background: var(--pri-soft); border-color: var(--pri); }
+.cg-legend .sw.closed { background: repeating-linear-gradient(45deg, #ececec, #ececec 3px, #f7f7f7 3px, #f7f7f7 6px); }
+.cg-legend .sw.off { background: repeating-linear-gradient(45deg, var(--acc-soft), var(--acc-soft) 3px, #fff 3px, #fff 6px); border-color: var(--acc); }
+.cg-legend .sw.late { background: #f3f3f3; }
+.cg-legend .sw.sel { background: var(--pri); border-color: var(--pri); }
+.cg-wrap { max-height: min(62vh, 620px); overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.cg-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 13px; }
+.cg-table thead th { position: sticky; top: 0; z-index: 3; background: var(--pri-soft); color: var(--pri-dark); font-weight: bold; padding: 6px 2px; border-bottom: 1px solid var(--line); text-align: center; }
+.cg-table thead th .nm { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cg-table th.gt { width: 52px; background: #fff; color: var(--muted); font-weight: normal; font-family: var(--num); text-align: right; padding: 0 6px 0 2px; border-right: 1px solid var(--line); vertical-align: top; }
+.cg-table thead th.gt { background: var(--pri-soft); z-index: 4; text-align: center; padding: 6px 2px; }
+.cg-table th.gt.half { color: transparent; }
+.cg-table td.g { height: 44px; padding: 0; border-bottom: 1px dotted var(--line); border-left: 1px solid var(--line); text-align: center; font-size: 12px; color: var(--muted); }
+.cg-table tr.hour td.g, .cg-table tr.hour th.gt { border-top: 1px solid var(--line); }
+.cg-table td.g button { display: block; width: 100%; height: 100%; min-height: 44px; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; font-family: var(--num); font-size: 12px; color: var(--pri-dark); }
+.cg-table td.g.free { background: #fff; }
+.cg-table td.g.free button.cg-start:hover { background: var(--pri-soft); }
+.cg-table td.g.nofit { background: #fbfbfb; }
+.cg-table td.g.nofit button { color: transparent; cursor: not-allowed; }
+.cg-table td.g.sel { background: var(--pri); }
+.cg-table td.g.sel button { color: #fff; font-weight: bold; }
+.cg-table td.g.busy { background: var(--pri-soft); color: var(--pri-dark); font-size: 11px; }
+.cg-table td.g.closed { background: repeating-linear-gradient(45deg, #ececec, #ececec 4px, #f7f7f7 4px, #f7f7f7 8px); }
+.cg-table td.g.off { background: repeating-linear-gradient(45deg, var(--acc-soft), var(--acc-soft) 4px, #fff 4px, #fff 8px); color: var(--acc); font-size: 11px; }
+.cg-table td.g.late { background: #f3f3f3; }
+@media (max-width: 480px) {
+  .cg-table { font-size: 12px; }
+  .cg-table th.gt { width: 44px; }
+  .cg-sum { padding: 6px 8px; }
+  .cg-sum .bk-btn { padding: 0 12px; }
+}
+
+/* キャンセルの理由（私の予約） */
+.bk-reasons { border: 0; padding: 0; margin: 0 0 var(--gap); }
+.bk-reasons legend { padding: 0; margin-bottom: 6px; color: var(--muted); font-size: .9em; }
+.bk-reason { display: flex; align-items: center; gap: 10px; min-height: var(--tap); }
+.bk-reason input { width: 22px; height: 22px; min-height: 0; accent-color: var(--pri); }
+.bk-reason-text { width: 100%; margin-top: 4px; }
+.cg-table td.g.sel button.cg-start, .cg-table td.g.sel button.cg-start:hover { background: transparent; }
+.cg-sum .txt p.err { display: block; -webkit-line-clamp: unset; overflow: visible; }
+@media (max-width: 480px) { .cg-sum .txt p { -webkit-line-clamp: 3; font-size: .9em; } }

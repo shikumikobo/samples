@@ -2,10 +2,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useApp } from '@/lib/app-state';
-import { withRole } from '@/lib/db';
+import { NEW_CUSTOMER_ID, NEW_CUSTOMER_LABEL, useApp } from '@/lib/app-state';
+import { getDb, withRole } from '@/lib/db';
 import { errorCode, errorMessage, type ErrorCode } from '@/lib/errors';
-import { getService, getStaff, registerCustomer, reserveSlot, type ServiceRow, type StaffRow } from '@/features/booking/api';
+import { PhoneTakenError, getService, getStaff, registerCustomer, reserveSlot, type ServiceRow, type StaffRow } from '@/features/booking/api';
 import { formatDuration, formatWhen, formatYen, nextStep } from '@/features/booking/format';
 import { clearDraft, loadDraft, saveLastReservation, type Draft } from '@/features/booking/draft';
 import { validateNewCustomer, type NewCustomer, type NewCustomerErrors } from '@/features/booking/validate';
@@ -23,7 +23,6 @@ export default function Page() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [service, setService] = useState<ServiceRow | null>(null);
   const [staff, setStaff] = useState<StaffRow | null>(null);
-  const [who, setWho] = useState<'existing' | 'new'>('existing');
   const [form, setForm] = useState<NewCustomer>(EMPTY);
   const [fieldErrors, setFieldErrors] = useState<NewCustomerErrors>({});
   const [registeredId, setRegisteredId] = useState<string | null>(null);
@@ -61,7 +60,8 @@ export default function Page() {
 
   const me = customers.find((c) => c.id === customerId);
   const slot = draft?.slot ?? null;
-  const showForm = who === 'new' || !me;
+  // 上の「…として使う人」で選んだ人に従う。はじめての方（または、登録直後でまだ一覧にいない人）だけ入力欄を出す
+  const showForm = customerId === NEW_CUSTOMER_ID || !me;
 
   async function submit() {
     if (!service || !slot) return;
@@ -87,16 +87,29 @@ export default function Page() {
       const id = await withRole('customer', who_, (tx) => reserveSlot(tx, who_, service.id, slot));
       saveLastReservation(id);
       clearDraft();
-      // 新しく登録したお客さんは、画面上部の一覧を読み直すため、ページごと開き直す
-      if (showForm) window.location.assign('/book/done/');
+      // 新しく登録したお客さんは、画面上部の一覧を読み直すため、ページごと開き直す。
+      // ブラウザの保存（IndexedDB）への書き込みが終わる前に開き直すと、いま取った予約が消えるので、先に書き出し終えてから開き直す
+      if (showForm) {
+        try {
+          await (await getDb()).syncToFs();
+        } catch {}
+        window.location.assign('/book/done/');
+      }
       else router.push('/book/done/');
     } catch (e) {
-      setFailure({ text: errorMessage(e), code: errorCode(e) });
+      if (e instanceof PhoneTakenError) {
+        // すでにいる人の電話番号。他の人の名前は出さず、上の一覧から名前を選んでもらう
+        setFieldErrors({ phone: 'この電話番号は、すでに登録されています。' });
+        setFailure({ text: `この電話番号は、すでに登録されています。上の「${w.customer}として使う人」から名前を選んでください。`, code: 'PHONE_TAKEN' });
+      } else {
+        setFailure({ text: errorMessage(e), code: errorCode(e) });
+      }
       setBusy(false);
     }
   }
 
-  const step = failure ? nextStep(failure.code, w) : null;
+  // 電話番号の重複は、案内が上の文だけで足りる（やり直しの案内は出さない）
+  const step = failure ? (failure.code === 'PHONE_TAKEN' ? { text: '', href: null, label: '' } : nextStep(failure.code, w)) : null;
   const set = (k: keyof NewCustomer) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
 
   return (
@@ -140,19 +153,9 @@ export default function Page() {
       )}
 
       <h2>{w.customer}の情報</h2>
-      {me && (
-        <div className="bk-modes" role="group" aria-label={`${w.customer}の情報`}>
-          <button aria-pressed={who === 'existing'} onClick={() => setWho('existing')}>
-            {me.name} さん
-          </button>
-          <button aria-pressed={who === 'new'} onClick={() => setWho('new')}>
-            はじめての方
-          </button>
-        </div>
-      )}
       {showForm ? (
         <div>
-          <p className="muted">はじめての方は、お名前と連絡先を入力してください。</p>
+          <p className="muted">{NEW_CUSTOMER_LABEL}は、お名前と連絡先を入力してください。</p>
           <div className="bk-field">
             <label htmlFor="bk-name">お名前（必須）</label>
             <input id="bk-name" autoComplete="name" value={form.name} onChange={set('name')} aria-invalid={!!fieldErrors.name} />
@@ -175,7 +178,7 @@ export default function Page() {
         </div>
       ) : (
         <p className="muted">
-          {me?.name} さんとして{bw.reservation}します。
+          {me?.name} さんとして{bw.reservation}します。別の方は、上の「{w.customer}として使う人」で選び直してください。
         </p>
       )}
 
@@ -184,7 +187,7 @@ export default function Page() {
           <p>
             <strong>{failure.text}</strong>
           </p>
-          <p>{step.text}</p>
+          {step.text && <p>{step.text}</p>}
           {step.href && (
             <Link className="bk-btn ghost" href={step.href}>
               {step.label}

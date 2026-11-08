@@ -8,6 +8,10 @@ import { DEFAULT_THEME, applyTheme, clearTheme, loadTheme, saveTheme, type Theme
 const ROLE_KEY = 'booking-crm.role';
 const CUSTOMER_KEY = 'booking-crm.customer';
 
+/** 「はじめての方」を選んでいるときの customerId（DB に行は無い。予約の確認の画面で名前などを入れてもらう） */
+export const NEW_CUSTOMER_ID = '__new__';
+export const NEW_CUSTOMER_LABEL = 'はじめての方';
+
 export interface CustomerOption {
   id: string;
   name: string;
@@ -70,7 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const list = rows.map((x) => ({ id: String(x.id), name: x.name }));
         setCustomers(list);
         const saved = read(CUSTOMER_KEY);
-        setCustomerIdState(list.some((c) => c.id === saved) ? saved : (list[0]?.id ?? null));
+        setCustomerIdState(saved === NEW_CUSTOMER_ID || list.some((c) => c.id === saved) ? saved : (list[0]?.id ?? null));
       })
       .catch(() => {});
   }, []);

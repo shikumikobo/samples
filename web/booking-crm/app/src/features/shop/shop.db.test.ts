@@ -23,6 +23,8 @@ import {
   saveHours,
   saveKarte,
   saveService,
+  setNote,
+  setStatus,
 } from './queries';
 import { dayOf, trialKind } from './lib';
 
@@ -93,6 +95,34 @@ describe('お店側の SQL（サロンの seed）', () => {
     const c = await shop((tx) => loadCustomer(tx, 'c01'));
     expect(c).toMatchObject({ note: '次回は短めに', caution: 'ラテックスアレルギー' });
     await expect(withRole('customer', 'c01', (tx) => q(tx, 'select note from customers'))).rejects.toThrow(/permission denied/);
+  }, 60000);
+
+  it('保存後の修正：来店済み→予約済みに戻す／メモ／キャンセルの理由。履歴に残り、お客さんにはメモが見えない', async () => {
+    const out = await shop(async (tx) => {
+      const svc = (await loadServices(tx, true)).find((s) => !s.is_trial && s.kind === 'timed')!;
+      const slots = await loadSlots(tx, svc.id, null, '2026-11-17');
+      const id = await reserveFor(tx, 'c23', svc.id, slots[0]);
+      await markVisited(tx, id);
+      await setStatus(tx, id, 'booked');
+      await setNote(tx, id, '次回はカラーを変えたい');
+      await setStatus(tx, id, 'canceled', '体調不良のため');
+      const r = (await loadReservations(tx, '2026-11-17', '2026-11-17')).find((x) => x.id === id)!;
+      const acts = (await loadHistory(tx, 'c23')).filter((h) => h.reservation_id === id).map((h) => h.action).reverse();
+      return { id, r, acts };
+    });
+    expect(out.r).toMatchObject({ status: 'canceled', note: '体調不良のため' });
+    expect(out.acts).toEqual(['create', 'visit', 'restore', 'update', 'cancel']);
+    // お客さんは、予約の note も、履歴の before/after も読めない（列の権限）
+    await expect(withRole('customer', 'c23', (tx) => q(tx, 'select note from reservations'))).rejects.toThrow(/permission denied/);
+    await expect(withRole('customer', 'c23', (tx) => q(tx, 'select after from history'))).rejects.toThrow(/permission denied/);
+    // お客さんは状態を直せない
+    let err: unknown = null;
+    try {
+      await withRole('customer', 'c23', (tx) => q(tx, `select set_reservation_status($1, 'booked')`, [out.id]));
+    } catch (e) {
+      err = e;
+    }
+    expect(errorCode(err)).toBe('FORBIDDEN');
   }, 60000);
 
   it('設定：サービス・営業時間・休みが shop の権限で書ける（policies.sql）', async () => {

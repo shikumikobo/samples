@@ -18,6 +18,7 @@ export interface Rsv {
   price: number;
   is_trial: boolean;
   status: 'booked' | 'visited' | 'canceled' | 'noshow';
+  note?: string; // お店のメモ（キャンセルの理由など）
 }
 
 export const hm = (s: string) => s.slice(11, 16);
@@ -147,7 +148,7 @@ export interface HistoryRow {
 }
 export function describeHistory(
   h: HistoryRow,
-  w: Pick<Words, 'visited' | 'noshow' | 'customer'>,
+  w: Pick<Words, 'visited' | 'noshow' | 'customer' | 'booked'>,
   rsvWord: string,
 ): { when: string; who: string; what: string; detail: string } {
   const label: Record<string, string> = {
@@ -156,14 +157,26 @@ export function describeHistory(
     cancel: `${rsvWord}をキャンセル`,
     visit: w.visited,
     noshow: w.noshow,
+    restore: `${w.booked}に戻した`,
     update: `${rsvWord}を更新`,
   };
-  const t = (x: Record<string, unknown> | null) => (x && typeof x.starts_at === 'string' ? mdhm(x.starts_at) : '');
-  const detail = h.action === 'change' ? `${t(h.before)} → ${t(h.after)}` : t(h.after ?? h.before);
+  // トリガーが書いた履歴の日時は UTC（+00:00）の文字列のことがある。日本時間にそろえてから出す
+  const jst = (v: string) => (/\+09:00$/.test(v) ? v : new Date(new Date(v).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 19) + '+09:00');
+  const t = (x: Record<string, unknown> | null) => (x && typeof x.starts_at === 'string' ? mdhm(jst(x.starts_at)) : '');
+  const noteOf = (x: Record<string, unknown> | null) => (x && typeof x.note === 'string' ? x.note : '');
+  const noteChanged = noteOf(h.before) !== noteOf(h.after);
+  let what = label[h.action] ?? h.action;
+  let detail = h.action === 'change' ? `${t(h.before)} → ${t(h.after)}` : t(h.after ?? h.before);
+  if (h.action === 'update' && noteChanged) {
+    what = 'メモを更新';
+    detail = noteOf(h.after) ? `「${noteOf(h.after)}」` : 'メモを消した';
+  } else if (noteChanged && noteOf(h.after)) {
+    detail = `${detail}　メモ：「${noteOf(h.after)}」`;
+  }
   return {
     when: mdhm(h.at),
     who: h.actor === 'shop' ? 'お店' : `${w.customer}本人`,
-    what: label[h.action] ?? h.action,
+    what,
     detail,
   };
 }

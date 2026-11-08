@@ -78,6 +78,7 @@ create table reservations (
   price       int  not null check (price >= 0),            -- その時点の金額
   is_trial    boolean not null default false,
   status      text not null default 'booked' check (status in ('booked', 'visited', 'canceled', 'noshow')),
+  note        text not null default '',                    -- お店のメモ（キャンセルの理由・来店のひとことなど。お客さんには見せない）
   created_at  timestamptz not null default now(),
   check (starts_at < ends_at),
   -- サロン：同じ担当の重なる時間は、関数の確認に加えて、ここでも拒む（二重の守り）

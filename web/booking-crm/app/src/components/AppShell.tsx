@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
-import { useApp } from '@/lib/app-state';
+import { NEW_CUSTOMER_ID, NEW_CUSTOMER_LABEL, useApp } from '@/lib/app-state';
 import { MODES, WORDS } from '@/lib/words';
 import type { Role } from '@/lib/db';
 
@@ -24,7 +24,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const path = usePathname() ?? '/';
   const [asking, setAsking] = useState(false);
-  const nav = role === 'shop' ? SHOP_NAV : CUSTOMER_NAV;
+  const isNew = role === 'customer' && app.customerId === NEW_CUSTOMER_ID;
+  // はじめての方には「私の予約」が無い（まだ予約がないため）
+  const nav = role === 'shop' ? SHOP_NAV : isNew ? CUSTOMER_NAV.filter((n) => n.href !== '/my/') : CUSTOMER_NAV;
 
   function pickRole(r: Role) {
     if (r === role) return;
@@ -58,6 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <label className="who">
                 <span>{w.customer}として使う人</span>
                 <select value={app.customerId ?? ''} onChange={(e) => app.setCustomerId(e.target.value)}>
+                  <option value={NEW_CUSTOMER_ID}>{NEW_CUSTOMER_LABEL}</option>
                   {app.customers.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}

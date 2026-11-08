@@ -4,7 +4,7 @@ import { useApp } from '@/lib/app-state';
 import { formatDay } from '@/lib/demo-date';
 import { byTime, countDay, groupBy, range, yen, type Rsv } from './lib';
 import { SHOP_WORDS, statusLabel } from './words';
-import { loadReservations, loadSessions, loadToday, markNoshow, markVisited, type SessionRow } from './queries';
+import { loadReservations, loadSessions, loadToday, markNoshow, markVisited, setStatus, type SessionRow } from './queries';
 import { FlashView, LoadState, ShopPage, StatusBadge, useAct, useShopLoad } from './ui';
 
 export function TodayView() {
@@ -97,10 +97,16 @@ function Row({ r, act, busy, hideTime }: { r: Rsv; act: Act; busy: boolean; hide
         {r.caution && <span className="sh-caution">注意あり</span>}
       </div>
       <div className="sub">{r.service_name}　{yen(r.price)}</div>
+      {r.note && <div className="sh-memo">メモ：{r.note}</div>}
       {r.status === 'booked' && (
         <div className="acts">
           <button className="primary" disabled={busy} onClick={() => act((tx) => markVisited(tx, r.id), `${r.customer_name}：${w.visited}にしました。`)}>{w.visited}</button>
           <button className="danger" disabled={busy} onClick={() => act((tx) => markNoshow(tx, r.id), `${r.customer_name}：${w.noshow}にしました。`)}>{w.noshow}</button>
+        </div>
+      )}
+      {(r.status === 'visited' || r.status === 'noshow') && (
+        <div className="acts">
+          <button disabled={busy} onClick={() => act((tx) => setStatus(tx, r.id, 'booked'), `${r.customer_name}：${w.booked}に戻しました。`)}>{w.booked}に戻す</button>
         </div>
       )}
     </div>

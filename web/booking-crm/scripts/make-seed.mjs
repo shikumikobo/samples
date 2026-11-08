@@ -109,6 +109,12 @@ export function buildSeed(data, label = '') {
     }));
 
   const derived = [];
+  // 予約のお店のメモ：JSON に note があればそれ。なければ、キャンセル・無断欠席・一部の来店に、架空のひとことを入れる（順番で決まる）
+  const CANCEL_NOTES = ['体調不良のため、前日に連絡があった', '仕事の都合で日程が合わず、別の日に取り直す予定', 'お子さんの用事で来られなくなった', '日にちを間違えていたため'];
+  const NOSHOW_NOTES = ['連絡なしで来店されず。次回は前日に確認の連絡をする'];
+  const VISIT_NOTES = ['次回の希望をうかがった'];
+  let noteIdx = 0;
+  const noteOf = (r, status, i) => r.note ?? (status === 'canceled' ? CANCEL_NOTES[i % CANCEL_NOTES.length] : status === 'noshow' ? NOSHOW_NOTES[0] : status === 'visited' && i % 8 === 0 ? VISIT_NOTES[0] : '');
   const resRows = (data.reservations || []).map((r) => {
     const svc = services.get(r.service_id) || err(`reservations ${r.id}: メニュー ${r.service_id} がありません`);
     let s, e, staff = r.staff_id;
@@ -125,11 +131,11 @@ export function buildSeed(data, label = '') {
     const isTrial = r.is_trial ?? svc.is_trial ?? false;
     derived.push({ id: r.id, customer: r.customer_id, status, start: s, created,
       row: { id: r.id, customer_id: r.customer_id, service_id: r.service_id, staff_id: staff, session_id: r.session_id ?? null, starts_at: s, ends_at: e, price, is_trial: isTrial, status } });
-    return [q(r.id), q(r.customer_id), q(r.service_id), q(staff), q(r.session_id ?? null), lit(s), lit(e), q(price), q(isTrial), q(status), lit(created)];
+    return [q(r.id), q(r.customer_id), q(r.service_id), q(staff), q(r.session_id ?? null), lit(s), lit(e), q(price), q(isTrial), q(status), q(noteOf(r, status, noteIdx++)), lit(created)];
   });
   // 予約は履歴のトリガーを止めて入れる（履歴は下で、日付をそろえて入れる）
   out.push('alter table reservations disable trigger reservations_history;');
-  insert('reservations', ['id', 'customer_id', 'service_id', 'staff_id', 'session_id', 'starts_at', 'ends_at', 'price', 'is_trial', 'status', 'created_at'], resRows);
+  insert('reservations', ['id', 'customer_id', 'service_id', 'staff_id', 'session_id', 'starts_at', 'ends_at', 'price', 'is_trial', 'status', 'note', 'created_at'], resRows);
   out.push('alter table reservations enable trigger reservations_history;');
 
   const hist = [];

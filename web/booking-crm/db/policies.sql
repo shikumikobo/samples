@@ -1,6 +1,6 @@
 -- 役割と行の制限（RLS）。docs/contract.md §5。
 -- 画面は withRole の中で、DB の役割 app_customer／app_shop に set role して SQL を実行する。
---   customer：自分の予約とプロフィールだけ。customers の note・caution は列の権限で読めない（select * は使えない）
+--   customer：自分の予約とプロフィールだけ。customers の note・caution、reservations の note、history の before/after は列の権限で読めない（select * は使えない）
 --   shop    ：すべて読める。マスタ（サービス・担当・営業時間・休み・クラス枠・お客さん・設定）は直接書ける
 --   予約の作成・変更・キャンセル・来店は、どちらも関数だけ（表への直接の書き込みの権限は付けない）
 -- 表の持ち主（スーパーユーザー）は RLS を通らない。seed はこちらで流す。
@@ -14,7 +14,10 @@ grant usage on schema public to app_customer, app_shop;
 
 -- 読む：マスタは全員
 grant select on settings, services, staff, staff_hours, staff_off, class_sessions to app_customer, app_shop;
-grant select on reservations, history to app_customer, app_shop;
+grant select on reservations, history to app_shop;
+-- お客さんは、予約の note（お店のメモ）と、history の before/after（note を含む）が読めない
+grant select (id, customer_id, service_id, staff_id, session_id, starts_at, ends_at, price, is_trial, status, created_at) on reservations to app_customer;
+grant select (id, at, actor, action, reservation_id) on history to app_customer;
 grant select on customers to app_shop;
 grant select (id, name, kana, phone, email, created_at, active) on customers to app_customer;
 grant update (name, kana, phone, email) on customers to app_customer;

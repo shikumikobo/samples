@@ -10,7 +10,7 @@ const RSV_SELECT = `
   select r.id, r.customer_id, c.name as customer_name, (c.caution <> '') as caution,
          r.service_id, s.name as service_name, r.staff_id, st.name as staff_name, r.session_id,
          ${TS('r.starts_at')} as starts_at, ${TS('r.ends_at')} as ends_at,
-         r.price, r.is_trial, r.status
+         r.price, r.is_trial, r.status, r.note
   from reservations r
   join customers c on c.id = r.customer_id
   join services s on s.id = r.service_id
@@ -180,6 +180,11 @@ export async function loadDue(tx: Tx, asOf: string): Promise<DueRow[]> {
 export const markVisited = (tx: Tx, id: string) => tx.query('select mark_visited($1)', [id]);
 export const markNoshow = (tx: Tx, id: string) => tx.query('select mark_noshow($1)', [id]);
 export const cancelReservation = (tx: Tx, id: string) => tx.query('select cancel_reservation($1)', [id]);
+/** 保存後の修正：状態をどれからどれへも直す（お店だけ）。note を渡すと、メモも同時に書く（キャンセルの理由）。canceled から戻すときは、枠が空いていないと SLOT_TAKEN */
+export const setStatus = (tx: Tx, id: string, status: 'booked' | 'visited' | 'noshow' | 'canceled', note: string | null = null) =>
+  tx.query('select set_reservation_status($1, $2, $3)', [id, status, note]);
+/** 予約のお店のメモを書く（お客さんには見えない）。履歴に残る */
+export const setNote = (tx: Tx, id: string, note: string) => tx.query('select set_reservation_note($1, $2)', [id, note]);
 export async function reserveFor(tx: Tx, customerId: string, serviceId: string, slot: Pick<Slot, 'staff_id' | 'starts_at' | 'session_id'>): Promise<string> {
   const r = await q<{ id: string }>(tx, 'select reserve($1, $2, $3, $4::timestamptz, $5) as id', [customerId, serviceId, slot.staff_id, slot.starts_at, slot.session_id]);
   return r[0].id;

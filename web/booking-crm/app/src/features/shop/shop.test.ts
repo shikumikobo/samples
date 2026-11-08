@@ -100,6 +100,35 @@ describe('変更の履歴の表示', () => {
   });
 });
 
+describe('変更の履歴の表示：メモと、保存後の修正', () => {
+  const at = '2026-11-09T09:00:00+09:00';
+  const rsv = { starts_at: '2026-11-10T10:00:00+09:00' };
+  it('予約済みに戻したら「戻した」。メモだけの更新は「メモを更新」と内容を出す', () => {
+    const back = describeHistory({ id: 1, at, actor: 'shop', action: 'restore', reservation_id: 'R1', before: { ...rsv, note: '' }, after: { ...rsv, note: '' } }, WORDS.salon, SHOP_WORDS.salon.rsv);
+    expect(back.what).toBe(`${WORDS.salon.booked}に戻した`);
+    const memo = describeHistory({ id: 2, at, actor: 'shop', action: 'update', reservation_id: 'R1', before: { ...rsv, note: '' }, after: { ...rsv, note: '次回はカラー' } }, WORDS.salon, SHOP_WORDS.salon.rsv);
+    expect(memo).toMatchObject({ what: 'メモを更新', detail: '「次回はカラー」' });
+    const cleared = describeHistory({ id: 3, at, actor: 'shop', action: 'update', reservation_id: 'R1', before: { ...rsv, note: 'a' }, after: { ...rsv, note: '' } }, WORDS.salon, SHOP_WORDS.salon.rsv);
+    expect(cleared.detail).toBe('メモを消した');
+  });
+  it('キャンセルの理由は、キャンセルの行に添えて出す（教室は申込みの言葉）', () => {
+    const d = describeHistory({ id: 4, at, actor: 'shop', action: 'cancel', reservation_id: 'R1', before: { ...rsv, note: '' }, after: { ...rsv, note: '体調不良のため' } }, WORDS.class, SHOP_WORDS.class.rsv);
+    expect(d.what).toBe('申込みをキャンセル');
+    expect(d.detail).toContain('メモ：「体調不良のため」');
+  });
+});
+
+describe('変更の履歴の表示：UTC の日時は日本時間で出す', () => {
+  it('トリガーが書いた +00:00 の日時も、日本時間（+9時間）で出る', () => {
+    const d = describeHistory(
+      { id: 5, at: '2026-11-09T09:00:00+09:00', actor: 'shop', action: 'visit', reservation_id: 'R1', before: null, after: { starts_at: '2026-10-10T03:00:00+00:00' } },
+      WORDS.salon,
+      SHOP_WORDS.salon.rsv,
+    );
+    expect(d.detail).toBe('10/10 12:00');
+  });
+});
+
 describe('営業時間の入力', () => {
   it('終了が開始より後でないと拒む', () => {
     expect(checkHours('10:00', '18:00')).toBeNull();

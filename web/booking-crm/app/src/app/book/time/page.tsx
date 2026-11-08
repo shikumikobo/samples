@@ -78,21 +78,25 @@ export default function Page() {
           <p className="lead">
             <strong>{service.name}</strong>　{formatYen(service.price)}（税込）／{formatDuration(service.duration_min)}　<Link href="/book/">{w.service}を変える</Link>
           </p>
-          <SlotPicker service={service} customerId={customerId} staffId={staffId} onStaffChange={changeStaff} selected={slot} onSelect={setSlot} />
-          <div className="bk-info" aria-live="polite">
-            {slot ? (
-              <>
-                選んだ日時：<strong>{formatWhen(slot.starts_at, slot.ends_at)}</strong>
-              </>
-            ) : (
-              '日にちと時間を選んでください。'
-            )}
-          </div>
-          <div className="bk-actions">
-            <button className="bk-btn" disabled={!slot} onClick={next}>
-              確認へ進む
-            </button>
-          </div>
+          <SlotPicker service={service} customerId={customerId} staffId={staffId} onStaffChange={changeStaff} selected={slot} onSelect={setSlot} onProceed={service.kind === 'timed' ? next : undefined} />
+          {service.kind !== 'timed' && (
+            <>
+              <div className="bk-info" aria-live="polite">
+                {slot ? (
+                  <>
+                    選んだ日時：<strong>{formatWhen(slot.starts_at, slot.ends_at)}</strong>
+                  </>
+                ) : (
+                  '日にちと時間を選んでください。'
+                )}
+              </div>
+              <div className="bk-actions">
+                <button className="bk-btn" disabled={!slot} onClick={next}>
+                  確認へ進む
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
     </section>

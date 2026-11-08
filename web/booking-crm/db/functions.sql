@@ -236,8 +236,14 @@ begin
   return r.id;
 end $$;
 
-create function cancel_reservation(p_id text) returns text language plpgsql security definer as $$
-declare r reservations;
+-- p_reason：キャンセルの理由（任意）。予約のお店のメモ（reservations.note）に足す。
+--   お客さん本人のとき：先頭に「【お客さんの理由】」を付け、すでにメモがあれば改行で続ける（お客さんはメモを読めない）
+--   お店のとき：そのまま足す。200字まで
+create function cancel_reservation(p_id text, p_reason text default null) returns text language plpgsql security definer as $$
+declare
+  r reservations;
+  reason text := left(btrim(coalesce(p_reason, '')), 200);
+  added text;
 begin
   select * into r from reservations where id = p_id and status = 'booked' for update;
   if not found then perform fail('NOT_FOUND', '予約が見つかりません'); end if;
@@ -247,7 +253,11 @@ begin
   if actor_role() = 'customer' and past_deadline(r.starts_at) then
     perform fail('DEADLINE_PASSED', 'キャンセルできる期限（前日まで）を過ぎています');
   end if;
-  update reservations set status = 'canceled' where id = p_id;
+  added := case when reason = '' then '' when actor_role() = 'customer' then '【お客さんの理由】' || reason else reason end;
+  update reservations
+     set status = 'canceled',
+         note = case when added = '' then note when note = '' then added else note || chr(10) || added end
+   where id = p_id;
   return p_id;
 end $$;
 
@@ -257,6 +267,71 @@ begin
   if not found then perform fail('NOT_FOUND', '予約が見つかりません'); end if;
   if actor_role() <> 'shop' then perform fail('FORBIDDEN', 'お店の人だけができます'); end if;
   update reservations set status = p_status where id = p_id;
+  return p_id;
+end $$;
+
+-- ── 電話番号の重複の確認（お店だけ） ─────────────────────
+-- 数字だけにして（ハイフン・空白・全角の記号を除く）比べる。
+create function normalize_phone(p text) returns text language sql immutable as
+$$ select regexp_replace(coalesce(p, ''), '[^0-9]', '', 'g') $$;
+
+-- 同じ電話番号の、いまのお客さん（active）の id。いなければ null。電話が空なら確認しない（null）。
+-- 複数いるとき（見本の体験の確認用のデータにある）は、登録の古い順の先頭
+create function find_customer_by_phone(p_phone text) returns text language plpgsql stable security definer as $$
+declare d text := normalize_phone(p_phone); cid text;
+begin
+  if actor_role() <> 'shop' then perform fail('FORBIDDEN', 'お店の人だけができます'); end if;
+  if d = '' then return null; end if;
+  select id into cid from customers where active and normalize_phone(phone) = d order by created_at, id limit 1;
+  return cid;
+end $$;
+
+-- ── 保存後の修正・メモ（お店だけ） ─────────────────────
+-- 予約のお店のメモ（キャンセルの理由・来店のひとことなど）。history には action='update' で before/after が残る
+create function set_reservation_note(p_id text, p_note text) returns text language plpgsql security definer as $$
+begin
+  if actor_role() <> 'shop' then perform fail('FORBIDDEN', 'お店の人だけができます'); end if;
+  perform 1 from reservations where id = p_id for update;
+  if not found then perform fail('NOT_FOUND', '予約が見つかりません'); end if;
+  update reservations set note = coalesce(p_note, '') where id = p_id and note is distinct from coalesce(p_note, '');
+  return p_id;
+end $$;
+
+-- 状態を、保存後でも直す：booked／visited／noshow／canceled のどれからどれへも。p_note があればメモも同時に書く（キャンセルの理由）。
+-- canceled から戻すときだけ、元の枠が今も空いているか確かめる（重なり・定員）。空いていなければ SLOT_TAKEN
+-- history：booked に戻す＝'restore'、visited＝'visit'、noshow＝'noshow'、canceled＝'cancel'（log_reservation）
+create function set_reservation_status(p_id text, p_status text, p_note text default null)
+returns text language plpgsql security definer as $$
+declare
+  r reservations;
+  cs class_sessions;
+  cnt int;
+begin
+  if actor_role() <> 'shop' then perform fail('FORBIDDEN', 'お店の人だけができます'); end if;
+  if p_status is null or p_status not in ('booked', 'visited', 'noshow', 'canceled') then
+    perform fail('NOT_FOUND', '状態が正しくありません');
+  end if;
+  select * into r from reservations where id = p_id for update;
+  if not found then perform fail('NOT_FOUND', '予約が見つかりません'); end if;
+
+  if r.status = 'canceled' and p_status <> 'canceled' then
+    if r.session_id is null then
+      perform 1 from staff where id = r.staff_id for update;
+      perform 1 from reservations x
+      where x.staff_id = r.staff_id and x.session_id is null and x.status <> 'canceled' and x.id <> r.id
+        and tstzrange(x.starts_at, x.ends_at) && tstzrange(r.starts_at, r.ends_at);
+      if found then perform fail('SLOT_TAKEN', 'この時間には、もう別の予約が入っています'); end if;
+    else
+      select * into cs from class_sessions where id = r.session_id for update;
+      select count(*) into cnt from reservations x where x.session_id = r.session_id and x.status <> 'canceled' and x.id <> r.id;
+      if cnt >= cs.capacity then perform fail('SLOT_TAKEN', 'この枠は、もう満席です'); end if;
+      perform 1 from reservations x where x.session_id = r.session_id and x.status <> 'canceled' and x.customer_id = r.customer_id and x.id <> r.id;
+      if found then perform fail('SLOT_TAKEN', '同じ枠に、すでに申し込まれています'); end if;
+    end if;
+  end if;
+
+  update reservations set status = p_status, note = coalesce(p_note, note)
+  where id = p_id and (status is distinct from p_status or note is distinct from coalesce(p_note, note));
   return p_id;
 end $$;
 
@@ -285,3 +360,15 @@ begin
   where l.return_days is not null and p_as_of - l.d > l.return_days
   order by 4 desc, 1;
 end $$;
+
+-- ── 埋まっている時間（お客さん画面の日時の表用） ─────────────
+-- サロン型（枠ではない）の、キャンセルでない予約の「担当・開始・終了」だけを返す。お客さんの名前などは返さない。
+-- お客さんは他人の予約を読めないが、表で「埋まっている時間」を見せるのに要るため、security definer。
+create function busy_blocks(p_day date)
+returns table (staff_id text, starts_at timestamptz, ends_at timestamptz)
+language sql stable security definer as $$
+  select r.staff_id, r.starts_at, r.ends_at
+  from reservations r
+  where r.session_id is null and r.status <> 'canceled' and local_day(r.starts_at) = p_day
+  order by 2, 1
+$$;

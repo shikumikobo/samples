@@ -187,6 +187,126 @@ for (const [name, cfg] of Object.entries(CFGS)) {
       assert.match(await err(() => as(db, 'shop', null, (q) => q(`update history set actor='x'`))) ?? '', /permission denied/);
     });
 
+    test('保存後の修正：状態をどれからどれへも直せる（お店だけ）。メモは別に書ける。どれも履歴に残る', async () => {
+      const id = cfg.own.id;
+      const shop = (sql, params) => as(db, 'shop', null, (q) => q(sql, params));
+      const last = async () => (await db.query(`select action, actor, before, after from history where reservation_id=$1 order by id desc limit 1`, [id])).rows[0];
+      const n = async () => (await db.query(`select count(*)::int n from history where reservation_id=$1`, [id])).rows[0].n;
+      // お客さんは使えない
+      assert.equal(code(await err(() => as(db, 'customer', cfg.own.cust, (q) => q(`select set_reservation_status($1, 'visited')`, [id])))), 'FORBIDDEN');
+      assert.equal(code(await err(() => as(db, 'customer', cfg.own.cust, (q) => q(`select set_reservation_note($1, 'x')`, [id])))), 'FORBIDDEN');
+      // 来店済み → 予約済みに戻す（restore）
+      await shop('select mark_visited($1)', [id]);
+      await shop(`select set_reservation_status($1, 'booked')`, [id]);
+      assert.equal((await db.query('select status from reservations where id=$1', [id])).rows[0].status, 'booked');
+      assert.equal((await last()).action, 'restore');
+      // 同じ状態・メモなしは何もしない（履歴を増やさない）
+      const before = await n();
+      await shop(`select set_reservation_status($1, 'booked')`, [id]);
+      assert.equal(await n(), before);
+      // メモだけ（update）
+      await shop(`select set_reservation_note($1, '次回の希望をうかがった')`, [id]);
+      let h = await last();
+      assert.equal(h.action, 'update');
+      assert.equal(h.after.note, '次回の希望をうかがった');
+      assert.equal(h.before.note, '');
+      // 無断欠席 → 来店済み（visit）
+      await shop(`select set_reservation_status($1, 'noshow')`, [id]);
+      assert.equal((await last()).action, 'noshow');
+      await shop(`select set_reservation_status($1, 'visited')`, [id]);
+      assert.equal((await last()).action, 'visit');
+      // キャンセルの理由を、状態と同時に書く（cancel）
+      await shop(`select set_reservation_status($1, 'canceled', '体調不良のため')`, [id]);
+      h = await last();
+      assert.equal(h.action, 'cancel');
+      assert.equal(h.after.note, '体調不良のため');
+      // 枠が空いていれば、キャンセルからも戻せる。メモはそのまま残る
+      await shop(`select set_reservation_status($1, 'booked')`, [id]);
+      const r = (await db.query('select status, note from reservations where id=$1', [id])).rows[0];
+      assert.deepEqual(r, { status: 'booked', note: '体調不良のため' });
+      assert.equal((await last()).action, 'restore');
+      // 正しくない状態・ない予約
+      assert.equal(code(await err(() => shop(`select set_reservation_status($1, 'foo')`, [id]))), 'NOT_FOUND');
+      assert.equal(code(await err(() => shop(`select set_reservation_status('nope', 'booked')`))), 'NOT_FOUND');
+      assert.equal(code(await err(() => shop(`select set_reservation_note('nope', 'x')`))), 'NOT_FOUND');
+    });
+
+    test('キャンセルから戻すとき、元の枠がもう埋まっていれば SLOT_TAKEN（元のまま）', async () => {
+      const id = cfg.own.id;
+      const shop = (sql, params) => as(db, 'shop', null, (q) => q(sql, params));
+      await shop(`select set_reservation_status($1, 'canceled', '日程が合わず')`, [id]);
+      // 同じ枠に、別の人の予約を入れる（教室は、そのぶんで満席にする）
+      const r = (await db.query('select * from reservations where id=$1', [id])).rows[0];
+      const other = (await db.query(`select id from customers where id <> $1 order by id limit 1`, [r.customer_id])).rows[0].id;
+      await db.query(
+        `insert into reservations (id, customer_id, service_id, staff_id, session_id, starts_at, ends_at, price, is_trial, status, created_at)
+         values ('rX', $1, $2, $3, $4, $5, $6, $7, false, 'booked', now())`,
+        [other, r.service_id, r.staff_id, r.session_id, r.starts_at, r.ends_at, r.price],
+      );
+      if (r.session_id) await db.query(`update class_sessions set capacity = (select count(*) from reservations where session_id=$1 and status <> 'canceled') where id=$1`, [r.session_id]);
+      assert.equal(code(await err(() => shop(`select set_reservation_status($1, 'booked')`, [id]))), 'SLOT_TAKEN');
+      assert.equal((await db.query('select status from reservations where id=$1', [id])).rows[0].status, 'canceled');
+      // キャンセルのまま、来店済み・無断欠席にはできない（戻すのと同じ確認）
+      assert.equal(code(await err(() => shop(`select set_reservation_status($1, 'visited')`, [id]))), 'SLOT_TAKEN');
+      // キャンセルのままメモだけ直すのはできる
+      await shop(`select set_reservation_note($1, '理由を書き直した')`, [id]);
+      assert.equal((await db.query('select note from reservations where id=$1', [id])).rows[0].note, '理由を書き直した');
+    });
+
+    test('お客さん本人のキャンセルの理由：メモに「【お客さんの理由】」つきで足される（既存のメモは残る）。お客さんは読めない', async () => {
+      const id = cfg.own.id;
+      await as(db, 'shop', null, (q) => q(`select set_reservation_note($1, 'お店のメモ')`, [id]));
+      await as(db, 'customer', cfg.own.cust, (q) => q('select cancel_reservation($1, $2)', [id, '予定が合わなくなった']));
+      const r = (await db.query('select status, note from reservations where id=$1', [id])).rows[0];
+      assert.equal(r.status, 'canceled');
+      assert.equal(r.note, 'お店のメモ\n【お客さんの理由】予定が合わなくなった');
+      assert.match(await err(() => as(db, 'customer', cfg.own.cust, (q) => q('select note from reservations'))) ?? '', /permission denied/);
+      // 理由なし（答えない）は、メモを変えない
+      const id2 = cfg.other;
+      const c2 = (await db.query('select customer_id from reservations where id=$1', [id2])).rows[0].customer_id;
+      await as(db, 'customer', c2, (q) => q('select cancel_reservation($1)', [id2]));
+      assert.equal((await db.query('select note from reservations where id=$1', [id2])).rows[0].note, '');
+    });
+
+    test('お店のキャンセルの理由は、そのままメモに足される', async () => {
+      const id = cfg.own.id;
+      await as(db, 'shop', null, (q) => q('select cancel_reservation($1, $2)', [id, '電話で取り消し']));
+      assert.equal((await db.query('select note from reservations where id=$1', [id])).rows[0].note, '電話で取り消し');
+    });
+
+    test('電話番号の重複の確認：数字だけにして比べる。空は確認しない。お店だけが使える', async () => {
+      const c = (await db.query(`select id, phone from customers where active and phone <> '' order by created_at, id limit 1`)).rows[0];
+      const find = (p) => as(db, 'shop', null, async (q) => (await q('select find_customer_by_phone($1) as id', [p])).rows[0].id);
+      assert.equal(await find(c.phone), c.id);
+      const digits = c.phone.replace(/[^0-9]/g, '');
+      assert.equal(await find(digits), c.id);
+      assert.equal(await find(`${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`), c.id);
+      assert.equal(await find('09099990000'), null);
+      assert.equal(await find(''), null);
+      assert.equal(await find(null), null);
+      // やめたお客さん（active でない）は数えない
+      await db.query('update customers set active = false where id=$1', [c.id]);
+      const again = await find(c.phone);
+      assert.notEqual(again, c.id);
+      assert.equal(code(await err(() => as(db, 'customer', cfg.own.cust, (q) => q('select find_customer_by_phone($1)', [c.phone])))), 'FORBIDDEN');
+    });
+
+    test('権限：お客さんは、予約の note と、履歴の before/after（note を含む）を読めない', async () => {
+      const id = cfg.own.id;
+      await as(db, 'shop', null, (q) => q(`select set_reservation_note($1, '内緒のメモ')`, [id]));
+      for (const sql of ['select note from reservations', 'select * from reservations', 'select before from history', 'select after from history', 'select * from history']) {
+        const m = await err(() => as(db, 'customer', cfg.own.cust, (q) => q(sql)));
+        assert.match(m ?? '', /permission denied/, sql);
+      }
+      // 列を指定すれば、これまでどおり読める
+      await as(db, 'customer', cfg.own.cust, async (q) => {
+        assert.ok((await q('select id, status, starts_at from reservations')).rows.length > 0);
+        assert.ok((await q('select action, at from history')).rows.length > 0);
+      });
+      const shopSees = await as(db, 'shop', null, (q) => q('select note from reservations where id=$1', [id]));
+      assert.equal(shopSees.rows[0].note, '内緒のメモ');
+    });
+
     test('due_for_return：最後の来店から目安の日数を過ぎた人（過ぎた日数が多い順）', async () => {
       const r = await as(db, 'shop', null, (q) => q(`select * from due_for_return('2026-11-09')`));
       assert.deepEqual(r.rows.map(({ customer_id, due_since_days, service_id }) => ({ customer_id, due_since_days, service_id })), cfg.dueToday);
