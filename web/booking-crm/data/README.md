@@ -12,7 +12,7 @@
 
 ## JSON の形
 
-- 最上位のキーは表の名前：`settings`（`key`/`value` の配列）・`services`・`staff`・`staff_hours`・`staff_off`・`class_sessions`（サロンは空）・`customers`・`reservations`。履歴（`history`）はトリガーが書くので持たない。`_readme` は読み飛ばす。
+- 最上位のキーは表の名前：`settings`（`key`/`value` の配列）・`services`・`staff`・`staff_hours`・`staff_off`・`session_series`（教室のくり返し。サロンは空）・`class_sessions`（サロンは空。くり返しの枠は `series_id` を持つ）・`customers`・`reservations`。履歴（`history`）はトリガーが書くので持たない。`_readme` は読み飛ばす。
 - 日時は `day_offset`（デモの今日 2026-11-09 からの日数。負は過去）と `time`（`HH:MM`）。終わりは `end_time`（同じ日の `HH:MM`）。
 - 契約の表にない列は、日時を分けた次の2つだけ：`staff_off.day_offset`（`day` の代わり）、`customers`・`reservations` の `created_day_offset`＋`created_time`（`created_at` の代わり）。`class_sessions` と `reservations` は `day_offset`＋`time`＋`end_time`。
 - `id` は文字列：担当 `st1`〜`st3`（サロン）・`t1`〜`t3`（教室）、顧客 `c01`〜`c25`、予約 `r001`〜`r060`（日時の順）、枠 `cs01`〜。
@@ -22,7 +22,7 @@
 ## 量
 
 - 各セット：サービス7（体験1）・担当3・顧客25・予約60（過去40：来店済み34・キャンセル3・無断欠席3、先20：予約済み）。
-- 教室：クラス枠は今日の -28〜+14 日（過去の枠は予約のあるものだけ）、定員 4・5・6・8。
+- 教室：過去の枠は今日の -28〜-1 日（予約のあるものだけ）、定員 4・5・6・8。今日より先の開催日は、日にち限定5・毎週3（金曜2・土曜1）・毎月1（17日）。くり返しは `session_series` の期限（毎週は +46・+47 日、毎月は +69 日）までの日にちを枠にし、担当の休みの日は飛ばす（`build_data.py` の `CLASS_ONE_OFF`・`CLASS_SERIES`）。
 - 体験：料金 2,500円、`is_trial`・`first_time_only` = true、1人1回。体験のあと通常メニューに来た人が6人、体験だけの人2人、体験を無断欠席した人1人、体験を先に予約している人2人。
 - そろそろ来店：サロン5人、教室4人（最後の来店 + `return_days` が今日以前）。`return_days`：サロンは 21〜35（体験21）、教室は 14（体験10）。
 

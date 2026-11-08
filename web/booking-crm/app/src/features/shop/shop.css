@@ -101,22 +101,34 @@
 .sh-item .sh-karte-link { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 4px; font-size: .85em; }
 .sh-karte-btn { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 14px; border: 1px solid var(--pri); border-radius: 10px; color: var(--pri-dark); background: var(--pri-soft); text-decoration: none; }
 
+/* 予定表：今日の列は色を変える */
+.sh-col.today { background: var(--pri-soft); border: 2px solid var(--pri); }
+.sh-col.today > h3 button { color: var(--pri-dark); font-weight: bold; }
+.sh-today-tag { display: block; width: max-content; font-size: 12px; font-weight: bold; padding: 1px 10px; border-radius: 999px; background: var(--pri); color: #fff; margin: 4px auto 0; }
+.sh-col.today .sh-item { background: #fff; }
+
 /* 設定画面：隙間をつめ、1行を折り返さない（コースの表・営業時間・休み） */
 .sh-service { table-layout: fixed; min-width: 900px; }
-.sh-service th, .sh-service td { padding: 4px 4px; white-space: nowrap; }
-.sh-service th:nth-child(1) { width: 130px; }
-.sh-service th:nth-child(2) { width: 22%; }
-.sh-service th:nth-child(3) { width: 90px; }
-.sh-service th:nth-child(4) { width: 78px; }
-.sh-service th:nth-child(5) { width: 92px; }
-.sh-service th:nth-child(n+6):nth-child(-n+8) { width: 64px; text-align: center; }
-.sh-service th:nth-child(9) { width: 130px; }
+.sh-service th, .sh-service td { padding: 3px 4px; white-space: nowrap; }
+.sh-service tbody tr:hover { background: var(--pri-soft); }
+.sh-service th:nth-child(1) { width: 92px; }
+.sh-service th:nth-child(3) { width: 108px; }
+.sh-service th:nth-child(4) { width: 92px; }
+.sh-service th:nth-child(5) { width: 100px; }
+.sh-service th:nth-child(n+6):nth-child(-n+8) { width: 62px; text-align: center; }
+.sh-service th:nth-child(9) { width: 124px; }
 .sh-service td:nth-child(n+6):nth-child(-n+8) { text-align: center; }
-.sh-service td:nth-child(9) button { min-width: 0; width: auto; margin-right: 4px; padding: 0 10px; white-space: nowrap; }
-.sh-service input[type='text'], .sh-service input[type='number'] { min-width: 0; padding: 4px 8px; text-overflow: ellipsis; }
+.sh-service td:nth-child(9) button { min-width: 0; width: auto; min-height: 36px; margin-right: 2px; padding: 0 10px; white-space: nowrap; }
+.sh-service input[type='text'], .sh-service input[type='number'] { min-width: 0; min-height: 36px; padding: 2px 8px; text-overflow: ellipsis; }
+.sh-service input[type='checkbox'] { width: 22px; height: 22px; }
 .sh-service .sh-img { min-width: 0; }
-.sh-service .sh-img img { width: 112px; height: 62px; }
-.sh-service .sh-img select { width: 112px; max-width: 112px; min-height: 32px; padding: 0 4px; font-size: .85em; }
+.sh-service .sh-img img { width: 56px; height: 36px; }
+.sh-img-c { display: block; position: static; }
+.sh-img-c > summary { display: flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; min-height: 36px; }
+.sh-img-c > summary::-webkit-details-marker { display: none; }
+.sh-img-c > summary span { font-size: .8em; color: var(--pri-dark); text-decoration: underline; }
+.sh-img-pop { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
+.sh-img-pop select { width: 120px; max-width: 120px; min-height: 32px; padding: 0 4px; font-size: .85em; }
 .sh-hours { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 8px; }
 .sh-hours .sh-col { padding: 8px 10px; }
 .sh-hours .sh-col > button { margin-top: 6px; white-space: nowrap; }
@@ -180,3 +192,16 @@
 .sh-sessions th:nth-child(8) { width: 140px; }
 .sh-sessions input[type='date'], .sh-sessions input[type='time'], .sh-sessions input[type='number'], .sh-sessions select { min-width: 0; width: 100%; padding: 4px 6px; }
 .sh-sessions td:nth-child(8) button { min-width: 0; width: auto; margin-right: 4px; padding: 0 10px; }
+
+/* 教室のくり返し */
+.sh-series { margin-bottom: 8px; padding: 8px 12px; }
+.sh-series-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.sh-series-head .grow { flex: 1 1 280px; }
+.sh-series-head button { min-height: 40px; padding: 0 12px; }
+.sh-series details { margin-top: 6px; }
+.sh-series details > summary { cursor: pointer; color: var(--pri-dark); min-height: 36px; display: flex; align-items: center; }
+.sh-session-add .sh-grid2 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+/* 週の見出し：日付を折り返さない。今日の印は日付の下 */
+.sh-week .sh-col > h3 { flex-direction: column; align-items: center; gap: 0; }
+.sh-week .sh-col > h3 button { white-space: nowrap; padding: 0 8px; }

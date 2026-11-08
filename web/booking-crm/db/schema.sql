@@ -45,6 +45,21 @@ create table staff_off (
   primary key (staff_id, day)
 );
 
+-- 教室の「くり返し」の決まり（毎週・毎月）。期限（until_day）までの日にちを、class_sessions に1回ずつ作る
+create table session_series (
+  id         text primary key,
+  service_id text not null references services(id),
+  staff_id   text not null references staff(id),
+  repeat     text not null check (repeat in ('weekly', 'monthly')),  -- 毎週（同じ曜日）／毎月（同じ日付。月末を超える月は月末）
+  start_day  date not null,
+  until_day  date not null,
+  start_time time not null,
+  end_time   time not null,
+  capacity   int  not null check (capacity > 0),
+  check (start_day <= until_day),
+  check (start_time < end_time)
+);
+
 create table class_sessions (
   id         text primary key,
   service_id text not null references services(id),
@@ -52,6 +67,7 @@ create table class_sessions (
   starts_at  timestamptz not null,
   ends_at    timestamptz not null,
   capacity   int  not null check (capacity > 0),
+  series_id  text references session_series(id) on delete set null,  -- null＝日にち限定の1回
   check (starts_at < ends_at)
 );
 

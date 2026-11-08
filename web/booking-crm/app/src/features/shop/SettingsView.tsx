@@ -5,16 +5,20 @@ import { errorMessage } from '@/lib/errors';
 import { PRESET_IMAGES, fileToDataUrl, imageSrc } from '@/lib/images';
 import { useApp } from '@/lib/app-state';
 import { formatDay } from '@/lib/demo-date';
-import { checkHours } from './lib';
+import { checkHours, checkRepeat, occurrences, repeatLabel, type Repeat } from './lib';
 import {
   addOff,
   addDays,
   addService,
   addSessions,
+  changeSeriesUntil,
+  loadSeries,
   loadSessions,
+  removeSeries,
   removeSession,
   updateSession,
   type SessionInput,
+  type SeriesRow,
   type SessionRow,
   addStaff,
   deactivateStaff,
@@ -59,7 +63,7 @@ function SettingsBody() {
   const { words: w, mode } = useApp();
   const { data, error, reload } = useShopLoad(async (tx) => {
     const today = await loadToday(tx);
-    return { today, services: await loadServices(tx), staff: await loadStaff(tx), hours: await loadHours(tx), off: await loadOff(tx, today, null), sessions: mode === 'class' ? await loadSessions(tx, today, addDays(today, 180)) : [] };
+    return { today, services: await loadServices(tx), staff: await loadStaff(tx), hours: await loadHours(tx), off: await loadOff(tx, today, null), sessions: mode === 'class' ? await loadSessions(tx, today, addDays(today, 420)) : [], series: mode === 'class' ? await loadSeries(tx, today) : [] };
   }, [mode]);
   const { act, flash, setFlash, busy } = useAct(reload);
   if (!data) return <LoadState error={error} loading />;
@@ -102,14 +106,36 @@ function SettingsBody() {
           services={data.services.filter((x) => x.kind === 'class')}
           staff={data.staff}
           sessions={data.sessions}
+          series={data.series}
           today={data.today}
           busy={busy}
           onError={(t) => setFlash({ kind: 'err', text: t })}
-          onAdd={async (x, n) => {
+          onAdd={async (x, repeat, until) => {
             try {
-              const r = await withRole('shop', null, (tx) => addSessions(tx, x, n));
+              const r = await withRole('shop', null, (tx) => addSessions(tx, x, repeat, until));
               const sk = r.skipped ? `（${r.skipped}回は、同じ担当の別の枠と重なるか休みの日なので、飛ばしました）` : '';
-              setFlash({ kind: r.added ? 'ok' : 'err', text: r.added ? `開催日を${r.added}回ぶん足しました。${sk}` : `足せませんでした。同じ担当の別の枠と重なるか、担当の休みの日です。` });
+              if (r.error) setFlash({ kind: 'err', text: r.error });
+              else setFlash({ kind: r.added ? 'ok' : 'err', text: r.added ? `開催日を${r.added}回ぶん足しました。${sk}` : `足せませんでした。同じ担当の別の枠と重なるか、担当の休みの日です。` });
+              reload();
+            } catch (e) {
+              setFlash({ kind: 'err', text: errorMessage(e) });
+            }
+          }}
+          onSeriesUntil={async (sr, until) => {
+            try {
+              const r = await withRole('shop', null, (tx) => changeSeriesUntil(tx, sr, until, data.today));
+              const parts = [r.added ? `${r.added}回ぶん足しました` : '', r.skipped ? `${r.skipped}回は重なりか休みなので飛ばしました` : '', r.removed ? `${r.removed}回ぶん消しました` : '', r.kept ? `予約の記録がある${r.kept}回は、日にち限定として残しました` : ''].filter(Boolean);
+              setFlash(r.error ? { kind: 'err', text: r.error } : { kind: 'ok', text: `期限を ${until} にしました。${parts.join('。')}${parts.length ? '。' : ''}` });
+              reload();
+            } catch (e) {
+              setFlash({ kind: 'err', text: errorMessage(e) });
+            }
+          }}
+          onSeriesRemove={async (sr) => {
+            if (!window.confirm(`「${sr.service_name}」の${repeatLabel(sr.repeat, sr.start_day)}のくり返しをやめます。今日以降の日を消します（予約の記録がある日は残ります）。よろしいですか？`)) return;
+            try {
+              const r = await withRole('shop', null, (tx) => removeSeries(tx, sr.id, data.today));
+              setFlash({ kind: 'ok', text: `くり返しをやめました。${r.removed}回ぶん消しました。${r.kept ? `予約の記録がある${r.kept}回は、日にち限定として残しました。` : ''}` });
               reload();
             } catch (e) {
               setFlash({ kind: 'err', text: errorMessage(e) });
@@ -175,7 +201,7 @@ function ServiceRowEdit({ s, busy, onSave, onError, onRemove }: { s: ServiceRow;
   }
   return (
     <tr>
-      <td><ImagePick image={image} onChange={setImage} onError={onError} label={s.name} /></td>
+      <td><ImagePick compact image={image} onChange={setImage} onError={onError} label={s.name} /></td>
       <td><input type="text" aria-label={`${s.name}の名前`} value={name} onChange={(e) => setName(e.target.value)} /></td>
       <td><input type="number" inputMode="numeric" aria-label={`${s.name}の料金`} value={price} onChange={(e) => setPrice(e.target.value)} /></td>
       <td><input type="number" inputMode="numeric" aria-label={`${s.name}の所要時間`} value={dur} onChange={(e) => setDur(e.target.value)} disabled={s.kind === 'class'} title={s.kind === 'class' ? '枠の時間で決まります' : undefined} /></td>
@@ -188,13 +214,11 @@ function ServiceRowEdit({ s, busy, onSave, onError, onRemove }: { s: ServiceRow;
   );
 }
 
-/** メニューの画像：同梱の画像から選ぶか、自分の写真を選ぶ（ブラウザの中で小さくして保存） */
-function ImagePick({ image, onChange, onError, label }: { image: string | null; onChange: (v: string | null) => void; onError: (t: string) => void; label: string }) {
+/** メニューの画像：同梱の画像から選ぶか、自分の写真を選ぶ（ブラウザの中で小さくして保存）。compact は表の中用（小さな画像で、押すと選ぶ欄が開く） */
+function ImagePick({ image, onChange, onError, label, compact }: { image: string | null; onChange: (v: string | null) => void; onError: (t: string) => void; label: string; compact?: boolean }) {
   const { mode } = useApp();
-  return (
-    <div className="sh-img">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageSrc(image)} alt={`${label}の画像`} />
+  const controls = (
+    <>
       <select aria-label={`${label}の画像を選ぶ`} value={image && !image.startsWith('data:') ? image : ''} onChange={(e) => e.target.value && onChange(e.target.value)}>
         <option value="">{image?.startsWith('data:') ? '自分の写真' : '画像を選ぶ'}</option>
         {PRESET_IMAGES.filter((p) => p.mode === mode).map((p) => <option key={p.file} value={p.file}>{p.label}</option>)}
@@ -207,6 +231,21 @@ function ImagePick({ image, onChange, onError, label }: { image: string | null; 
           try { onChange(await fileToDataUrl(f)); } catch (err) { onError(err instanceof Error ? err.message : '画像を読み込めませんでした。'); }
         }} />
       </label>
+    </>
+  );
+  /* eslint-disable @next/next/no-img-element */
+  if (compact) {
+    return (
+      <details className="sh-img sh-img-c">
+        <summary aria-label={`${label}の画像を変える`}><img src={imageSrc(image)} alt={`${label}の画像`} /><span>変更</span></summary>
+        <div className="sh-img-pop">{controls}</div>
+      </details>
+    );
+  }
+  return (
+    <div className="sh-img">
+      <img src={imageSrc(image)} alt={`${label}の画像`} />
+      {controls}
     </div>
   );
 }
@@ -262,16 +301,19 @@ function StaffAdd({ busy, onAdd, onError }: { busy: boolean; onAdd: (name: strin
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const wdOf = (day: string) => WEEK[new Date(`${day}T00:00:00Z`).getUTCDay()];
 
-/** 教室の開催日：1回だけ、または毎週同じ曜日に何回か、をまとめて足す。足した日は一覧で直す・消す */
-function SessionsEdit({ services, staff, sessions, today, busy, onAdd, onSave, onRemove, onError }: {
+/** 教室の開催日：日にち限定の1回、または毎週・毎月のくり返し（期限まで）をまとめて足す。足した日は一覧で直す・消す */
+function SessionsEdit({ services, staff, sessions, series, today, busy, onAdd, onSave, onRemove, onSeriesUntil, onSeriesRemove, onError }: {
   services: ServiceRow[];
   staff: StaffRow[];
   sessions: SessionRow[];
+  series: SeriesRow[];
   today: string;
   busy: boolean;
-  onAdd: (x: SessionInput, count: number) => void;
+  onAdd: (x: SessionInput, repeat: Repeat, until: string) => void;
   onSave: (id: string, x: SessionInput, booked: number) => void;
   onRemove: (s: SessionRow) => void;
+  onSeriesUntil: (sr: SeriesRow, until: string) => void;
+  onSeriesRemove: (sr: SeriesRow) => void;
   onError: (t: string) => void;
 }) {
   const { words: w } = useApp();
@@ -281,24 +323,45 @@ function SessionsEdit({ services, staff, sessions, today, busy, onAdd, onSave, o
   const [start, setStart] = useState('10:00');
   const [end, setEnd] = useState('12:00');
   const [cap, setCap] = useState('6');
-  const [count, setCount] = useState('1');
-  const n = Number(count);
-  const valid = Number.isInteger(n) && n >= 1 && n <= 26;
+  const [repeat, setRepeat] = useState<Repeat>('none');
+  const [until, setUntil] = useState('');
+  function pickRepeat(r: Repeat) {
+    setRepeat(r);
+    setUntil(r === 'weekly' ? addDays(day, 49) : r === 'monthly' ? addDays(day, 90) : '');
+  }
+  const bad = day ? checkRepeat(repeat, day, until) : null;
+  const n = day && !bad ? occurrences(repeat, day, until).length : 0;
   function submit() {
     const c = Number(cap);
     if (!svc) return onError(`${w.service}がありません。先に${w.service}を足してください。`);
     if (!day) return onError('日付を入れてください。');
     if (day < today) return onError('今日より前の日は入れられません。');
-    const bad = checkHours(start, end);
-    if (bad) return onError(bad);
+    const h = checkHours(start, end);
+    if (h) return onError(h);
     if (!Number.isInteger(c) || c <= 0) return onError('定員は1以上の整数で入れてください。');
-    if (!valid) return onError('回数は1〜26の整数で入れてください。');
-    onAdd({ service_id: svc, staff_id: sid, day, start, end, capacity: c }, n);
+    if (bad) return onError(bad);
+    onAdd({ service_id: svc, staff_id: sid, day, start, end, capacity: c }, repeat, until);
   }
+  const oneOff = sessions.filter((x) => !x.series_id);
+  const table = (list: SessionRow[], empty: string) => (
+    <div className="sh-tablewrap">
+      <table className="sh-table sh-sessions">
+        <thead>
+          <tr><th>日付</th><th>開始</th><th>終了</th><th>{w.service}</th><th>{w.staff}</th><th>定員</th><th>申込</th><th></th></tr>
+        </thead>
+        <tbody>
+          {list.map((x) => (
+            <SessionRowEdit key={`${x.id}-${x.starts_at}-${x.ends_at}-${x.staff_id}-${x.capacity}`} s={x} staff={staff} busy={busy} onSave={(v) => onSave(x.id, v, x.booked)} onRemove={() => onRemove(x)} onError={onError} />
+          ))}
+          {list.length === 0 && <tr><td colSpan={8}>{empty}</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
   return (
     <>
       <h2>開催日</h2>
-      <p className="sh-small">お客さんの画面に出る、教室の日にちです。「回数」を2以上にすると、同じ曜日に毎週、その回数ぶんまとめて足します。</p>
+      <p className="sh-small">お客さんの画面に出る、教室の日にちです。「くり返し」で、日にち限定（1回だけ）・毎週・毎月を選べます。毎週・毎月は「いつまで」の日まで、まとめて足します。</p>
       <div className="card sh-session-add">
         <div className="sh-grid2">
           <label className="sh-field"><span>{w.service}</span>
@@ -307,31 +370,56 @@ function SessionsEdit({ services, staff, sessions, today, busy, onAdd, onSave, o
           <label className="sh-field"><span>{w.staff}</span>
             <select value={sid} onChange={(e) => setSid(e.target.value)}>{staff.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
           </label>
-          <label className="sh-field"><span>はじめの日</span><input type="date" value={day} onChange={(e) => setDay(e.target.value)} /></label>
+          <label className="sh-field"><span>くり返し</span>
+            <select aria-label="くり返し" value={repeat} onChange={(e) => pickRepeat(e.target.value as Repeat)}>
+              <option value="none">日にち限定（1回だけ）</option>
+              <option value="weekly">毎週（同じ曜日）</option>
+              <option value="monthly">毎月（同じ日付）</option>
+            </select>
+          </label>
+          <label className="sh-field"><span>{repeat === 'none' ? '日にち' : 'はじめの日'}</span><input type="date" aria-label="はじめの日" value={day} onChange={(e) => setDay(e.target.value)} /></label>
           <label className="sh-field"><span>開始</span><input type="time" value={start} onChange={(e) => setStart(e.target.value)} /></label>
           <label className="sh-field"><span>終了</span><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
           <label className="sh-field"><span>定員（名）</span><input type="number" inputMode="numeric" value={cap} onChange={(e) => setCap(e.target.value)} /></label>
-          <label className="sh-field"><span>回数（毎週）</span><input type="number" inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value)} /></label>
+          {repeat !== 'none' && <label className="sh-field"><span>いつまで</span><input type="date" aria-label="いつまで" value={until} onChange={(e) => setUntil(e.target.value)} /></label>}
         </div>
         <p className="sh-small" aria-live="polite">
-          {day && valid ? (n === 1 ? `${day}（${wdOf(day)}）の1回だけ足します。` : `${day}（${wdOf(day)}）から、毎週${wdOf(day)}曜に${n}回（最後は ${addDays(day, 7 * (n - 1))}）足します。`) : ''}
+          {!day ? '' : repeat === 'none' ? `${day}（${wdOf(day)}）の1回だけ足します。` : bad ? bad : `${repeatLabel(repeat, day)}に、${day} から ${until} まで、${n}回足します。担当の休みの日などは飛ばします。`}
         </p>
         <button className="primary" disabled={busy || !svc} onClick={submit}>開催日を足す</button>
       </div>
-      <div className="card sh-tablewrap">
-        <table className="sh-table sh-sessions">
-          <thead>
-            <tr><th>日付</th><th>開始</th><th>終了</th><th>{w.service}</th><th>{w.staff}</th><th>定員</th><th>申込</th><th></th></tr>
-          </thead>
-          <tbody>
-            {sessions.map((x) => (
-              <SessionRowEdit key={`${x.id}-${x.starts_at}-${x.ends_at}-${x.staff_id}-${x.capacity}`} s={x} staff={staff} busy={busy} onSave={(v) => onSave(x.id, v, x.booked)} onRemove={() => onRemove(x)} onError={onError} />
-            ))}
-            {sessions.length === 0 && <tr><td colSpan={8}>これからの開催日はありません。</td></tr>}
-          </tbody>
-        </table>
-      </div>
+
+      <h3>日にち限定</h3>
+      <div className="card">{table(oneOff, '日にち限定の開催日は、これからはありません。')}</div>
+
+      <h3>毎週・毎月のくり返し</h3>
+      {series.length === 0 && <div className="card"><p className="sh-small">くり返しの開催日は、まだありません。</p></div>}
+      {series.map((sr) => (
+        <SeriesCard key={`${sr.id}-${sr.until_day}`} sr={sr} staffName={staff.find((x) => x.id === sr.staff_id)?.name ?? ''} list={sessions.filter((x) => x.series_id === sr.id)} busy={busy} table={table} onUntil={(u) => onSeriesUntil(sr, u)} onRemove={() => onSeriesRemove(sr)} />
+      ))}
     </>
+  );
+}
+
+function SeriesCard({ sr, staffName, list, busy, table, onUntil, onRemove }: { sr: SeriesRow; staffName: string; list: SessionRow[]; busy: boolean; table: (l: SessionRow[], empty: string) => React.ReactNode; onUntil: (u: string) => void; onRemove: () => void }) {
+  const [until, setUntil] = useState(sr.until_day);
+  const name = `${sr.service_name}（${repeatLabel(sr.repeat, sr.start_day)}）`;
+  return (
+    <div className="card sh-series">
+      <div className="sh-series-head">
+        <div className="grow">
+          <b>{sr.service_name}</b>　{repeatLabel(sr.repeat, sr.start_day)}　{sr.start_time}〜{sr.end_time}　{staffName}　定員{sr.capacity}名
+          <div className="sh-small">{sr.start_day} から {sr.until_day} まで（これから{list.length}回）</div>
+        </div>
+        <label className="sh-field inline"><span>いつまで</span><input type="date" aria-label={`${name}のいつまで`} value={until} onChange={(e) => setUntil(e.target.value)} /></label>
+        <button className="primary" disabled={busy || !until || until === sr.until_day} onClick={() => onUntil(until)} aria-label={`${name}の期限を変える`}>期限を変える</button>
+        <button disabled={busy} onClick={onRemove} aria-label={`${name}のくり返しをやめる`}>くり返しをやめる</button>
+      </div>
+      <details>
+        <summary>日ごとの一覧（{list.length}回）を開く</summary>
+        {table(list, 'これからの日はありません。')}
+      </details>
+    </div>
   );
 }
 

@@ -94,12 +94,16 @@ export function buildSeed(data, label = '') {
       return [q(o.staff_id), q(day), q(o.note ?? '')];
     }));
 
-  insert('class_sessions', ['id', 'service_id', 'staff_id', 'starts_at', 'ends_at', 'capacity'],
+  // 教室のくり返し（毎週・毎月）。start_day_offset／until_day_offset は demo_today からの日数
+  insert('session_series', ['id', 'service_id', 'staff_id', 'repeat', 'start_day', 'until_day', 'start_time', 'end_time', 'capacity'],
+    (data.session_series || []).map((r) => [q(r.id), q(r.service_id), q(r.staff_id), q(r.repeat), q(addDays(today, r.start_day_offset)), q(addDays(today, r.until_day_offset)), q(r.time), q(r.end_time), q(r.capacity)]));
+
+  insert('class_sessions', ['id', 'service_id', 'staff_id', 'starts_at', 'ends_at', 'capacity', 'series_id'],
     (data.class_sessions || []).map((c) => {
       const s = startOf(c, `class_sessions ${c.id}`);
       const e = endOf(c, s, services.get(c.service_id)?.duration_min);
       sessions.set(c.id, { s, e, staff: c.staff_id });
-      return [q(c.id), q(c.service_id), q(c.staff_id), lit(s), lit(e), q(c.capacity)];
+      return [q(c.id), q(c.service_id), q(c.staff_id), lit(s), lit(e), q(c.capacity), q(c.series_id ?? null)];
     }));
 
   insert('customers', ['id', 'name', 'kana', 'phone', 'email', 'note', 'caution', 'created_at', 'active'],

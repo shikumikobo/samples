@@ -64,6 +64,35 @@ ROWS = {
     25: ("R", [(-13, "v")], [6, 12]),
 }
 
+# 教室の初期の開催日（今日より先）：日にち限定5・毎週3・毎月1。ほかの先の枠は作らない
+# 日にち限定：(今日からの日数, 開始, メニュー)。くり返しは、期限（until）までの日にちを枠にする。担当の休みの日は飛ばす
+CLASS_ONE_OFF = [(2, "10:00", "cook_trial"), (3, "14:00", "cook_trial"), (7, "14:00", "cook_sweets"),
+                 (9, "18:30", "cook_ferment"), (10, "10:00", "cook_trial")]
+CLASS_SERIES = [
+    dict(id="sr1", service_id="cook_bread", staff_id="t3", repeat="weekly", start=4, until=46, time="10:00"),    # 毎週金曜
+    dict(id="sr2", service_id="cook_washoku", staff_id="t2", repeat="weekly", start=4, until=46, time="18:30"),  # 毎週金曜
+    dict(id="sr3", service_id="cook_western", staff_id="t2", repeat="weekly", start=5, until=47, time="10:00"),  # 毎週土曜
+    dict(id="sr4", service_id="cook_italian", staff_id="t1", repeat="monthly", start=8, until=69, time="18:30"), # 毎月17日
+]
+
+
+def series_days(repeat, start, until):
+    """くり返しの日にち（今日からの日数）。毎週＝7日おき、毎月＝同じ日付（その月にない日は月末）"""
+    if repeat == "weekly":
+        return list(range(start, until + 1, 7))
+    first = TODAY + datetime.timedelta(days=start)
+    out, k = [], 0
+    while True:
+        m = first.month - 1 + k
+        y, mo = first.year + m // 12, m % 12 + 1
+        last = (datetime.date(y + (mo == 12), mo % 12 + 1, 1) - datetime.timedelta(days=1)).day
+        off = (datetime.date(y, mo, min(first.day, last)) - TODAY).days
+        if off > until:
+            return out
+        out.append(off)
+        k += 1
+
+
 SETTINGS = [
     ("demo_today", "2026-11-09"), ("slot_minutes", "15"), ("booking_window_days", "60"),
     ("min_lead_hours", "2"), ("max_per_day", "2"), ("cancel_deadline", "prev_day_end"),
@@ -358,6 +387,37 @@ def build(cfg, seed):
         sessions = [s for s in sessions if s["day_offset"] >= 0 or s["id"] in used]
         for s in sessions:
             s.pop("_n", None)
+        # 今日より先の枠は、日にち限定5・毎週3・毎月1 にそろえる（予約のある枠はこの形に当てはめる）
+        key = lambda x: (x["day_offset"], x["time"], x["service_id"])
+        keep = {(d, t, v) for d, t, v in CLASS_ONE_OFF}
+        nxt = max(int(x["id"][2:]) for x in sessions) + 1
+        for sr in CLASS_SERIES:
+            dur = S[sr["service_id"]]["duration_min"]
+            for dayoff in series_days(sr["repeat"], sr["start"], sr["until"]):
+                if (sr["staff_id"], dayoff) in off_set:
+                    continue
+                hit = next((x for x in sessions if key(x) == (dayoff, sr["time"], sr["service_id"]) and x["staff_id"] == sr["staff_id"]), None)
+                if hit is None:
+                    hit = dict(id=f"cs{nxt}", service_id=sr["service_id"], staff_id=sr["staff_id"], day_offset=dayoff, time=sr["time"],
+                               end_time=hm(mins(sr["time"]) + dur), capacity=cfg["capacity"][sr["service_id"]])
+                    nxt += 1
+                    sessions.append(hit)
+                hit["series_id"] = sr["id"]
+        used = {r["session_id"] for r in res}
+        left = []
+        for x in sessions:
+            if x["day_offset"] < 0 or x.get("series_id") or key(x) in keep:
+                left.append(x)
+            else:
+                assert x["id"] not in used, f"予約のある枠 {x['id']} を消すことになる"
+        sessions = sorted(left, key=lambda x: (x["day_offset"], x["time"], x["staff_id"]))
+        assert {key(x) for x in sessions if not x.get("series_id") and x["day_offset"] >= 0} == keep, "日にち限定の枠が見つからない"
+        series = [dict(id=sr["id"], service_id=sr["service_id"], staff_id=sr["staff_id"], repeat=sr["repeat"],
+                       start_day_offset=sr["start"], until_day_offset=sr["until"], time=sr["time"],
+                       end_time=hm(mins(sr["time"]) + S[sr["service_id"]]["duration_min"]),
+                       capacity=cfg["capacity"][sr["service_id"]]) for sr in CLASS_SERIES]
+    else:
+        series = []
 
     def order(d, keys):
         return {k: d[k] for k in keys if k in d}
@@ -365,7 +425,7 @@ def build(cfg, seed):
     svc_keys = ["id", "name", "kind", "duration_min", "price", "is_trial", "first_time_only", "return_days", "image", "description", "sort", "active"]
     res_keys = ["id", "customer_id", "service_id", "staff_id", "session_id", "day_offset", "time", "end_time", "price", "is_trial", "status", "created_day_offset", "created_time"]
     cust_keys = ["id", "name", "kana", "phone", "email", "note", "caution", "created_day_offset", "created_time", "active"]
-    ses_keys = ["id", "service_id", "staff_id", "day_offset", "time", "end_time", "capacity"]
+    ses_keys = ["id", "service_id", "staff_id", "day_offset", "time", "end_time", "capacity", "series_id"]
     return {
         "_readme": "架空のデータ（すべて架空）。形は docs/contract.md §3・§7、補足は data/README.md。data/tools/build_data.py で作る。",
         "settings": [{"key": "mode", "value": mode}] + [{"key": k, "value": v} for k, v in SETTINGS],
@@ -373,6 +433,7 @@ def build(cfg, seed):
         "staff": staff,
         "staff_hours": hours,
         "staff_off": off,
+        "session_series": series,
         "class_sessions": [order(s, ses_keys) for s in sessions],
         "customers": [order(c, cust_keys) for c in customers],
         "reservations": [order(r, res_keys) for r in res],

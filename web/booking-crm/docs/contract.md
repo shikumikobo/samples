@@ -74,7 +74,7 @@ booking-crm/
 ## 6. サロン／教室の切り替え
 
 - 表の形は同じ。**データだけが違う**：`db/seed_salon.sql`（ネイルサロン）と `db/seed_class.sql`（料理教室）。切り替えると、`settings.mode` を変えて、その seed で DB を作り直す（「最初に戻す」と同じ処理）。
-- 言葉は `app/src/lib/words.ts` の辞書（担当 B）。キーは `service`（メニュー／コース）・`staff`（担当／講師）・`customer`（お客さん／生徒）・`visit`（来店／出席）・`visited`（来店済み／出席済み）・`book`（予約する）・`trial`（体験）・`return_list`（そろそろ来店／そろそろ再受講）…。画面は直接日本語を書かず、辞書を引く。**1つの画面にサロンの言葉と教室の言葉を混ぜない。**
+- 言葉は `app/src/lib/words.ts` の辞書（担当 B）。キーは `service`（メニュー／コース）・`staff`（担当／講師）・`customer`（お客さん／生徒）・`visit`（来店／出席）・`visited`（来店済み／出席済み）・`book`（予約する）・`trial`（体験）・`return_list`（販売促進／そろそろ再受講）…。画面は直接日本語を書かず、辞書を引く。**1つの画面にサロンの言葉と教室の言葉を混ぜない。**
 
 ## 7. 架空のデータの元（担当 C → A）
 
@@ -85,7 +85,7 @@ booking-crm/
 ## 8. 画面（URL）
 
 - お客さん：`/book/`（サービスの選択）→ `/book/time/`（担当と日時）→ `/book/confirm/` → `/book/done/`、`/my/`（自分の予約の確認・変更・キャンセル）
-- お店：`/today/`・`/calendar/`（日・週）・`/customers/`・`/customers/detail/?id=`・`/return/`（そろそろ来店）・`/settings/`（サービス・営業時間・休み）
+- お店：`/today/`・`/calendar/`（日・週）・`/customers/`・`/customers/detail/?id=`・`/return/`（販売促進）・`/settings/`（サービス・営業時間・休み）
 - 共通：`/`（サロン／教室とお客さん／お店を選ぶ）。画面の隅に常に「架空のお店のデモです。データはこのブラウザの中にだけあります」。
 
 ## 変更の依頼（ここに足す）

@@ -43,7 +43,7 @@ export function CalendarView() {
 function CalendarBody() {
   const { words: w, mode } = useApp();
   const sw = SHOP_WORDS[mode];
-  const [view, setView] = useState<View>('day');
+  const [view, setView] = useState<View>('week');
   const [date, setDate] = useState<string | null>(null);
   const [staffFilter, setStaffFilter] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -141,7 +141,7 @@ function CalendarBody() {
       {cal.data && (view === 'day' ? (
         <DayColumns day={cur} staff={staff.filter((s) => !staffFilter || s.id === staffFilter)} rs={shown} sessions={cal.data.sessions} off={cal.data.off} selected={selected} onSelect={(id) => { setSelected(id); setCreating(false); }} />
       ) : (
-        <WeekColumns days={days} staff={staff} rs={shown} sessions={cal.data.sessions.filter((s) => !staffFilter || s.staff_id === staffFilter)} off={cal.data.off} selected={selected} onSelect={(id) => { setSelected(id); setCreating(false); }} onDay={(d) => { setDate(d); setView('day'); }} />
+        <WeekColumns today={today} days={days} staff={staff} rs={shown} sessions={cal.data.sessions.filter((s) => !staffFilter || s.staff_id === staffFilter)} off={cal.data.off} selected={selected} onSelect={(id) => { setSelected(id); setCreating(false); }} onDay={(d) => { setDate(d); setView('day'); }} />
       ))}
     </>
   );
@@ -187,7 +187,7 @@ function DayColumns({ day, staff, rs, sessions, off, selected, onSelect }: { day
 }
 
 // ── 週：日ごとの列。中の行に担当を出す ──
-function WeekColumns({ days, staff, rs, sessions, off, selected, onSelect, onDay }: { days: string[]; staff: StaffRow[]; rs: Rsv[]; sessions: SessionRow[]; off: OffRow[]; selected: string | null; onSelect: (id: string) => void; onDay: (d: string) => void }) {
+function WeekColumns({ today, days, staff, rs, sessions, off, selected, onSelect, onDay }: { today: string; days: string[]; staff: StaffRow[]; rs: Rsv[]; sessions: SessionRow[]; off: OffRow[]; selected: string | null; onSelect: (id: string) => void; onDay: (d: string) => void }) {
   const { mode } = useApp();
   const sw = SHOP_WORDS[mode];
   const byDay = groupBy(rs, (r) => dayOf(r.starts_at));
@@ -198,8 +198,8 @@ function WeekColumns({ days, staff, rs, sessions, off, selected, onSelect, onDay
         const offs = off.filter((o) => o.day === d);
         const ss = sessions.filter((x) => dayOf(x.starts_at) === d);
         return (
-          <section className="sh-col" key={d} aria-label={formatDay(d)}>
-            <h3><button onClick={() => onDay(d)} style={{ minHeight: 44 }} aria-label={`${formatDay(d)}を日表示で開く`}>{formatDay(d)}</button></h3>
+          <section className={`sh-col ${d === today ? 'today' : ''}`} key={d} aria-label={d === today ? `${formatDay(d)}（今日）` : formatDay(d)}>
+            <h3><button onClick={() => onDay(d)} style={{ minHeight: 44 }} aria-label={`${formatDay(d)}を日表示で開く`}>{formatDay(d)}</button>{d === today && <span className="sh-today-tag">今日</span>}</h3>
             {offs.map((o) => <p className="sh-off" key={o.staff_id}>{staff.find((s) => s.id === o.staff_id)?.name}：休み</p>)}
             {mode === 'class' && ss.map((x) => {
               const members = list.filter((r) => r.session_id === x.id);

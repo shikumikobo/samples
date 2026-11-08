@@ -308,6 +308,7 @@ def gamma(br):
         page.get_by_role("group", name="お客さんかお店か").locator("button").nth(1).click()
         page.wait_for_url("**/today/**"); ready(page)
         page.goto(B + "/calendar/"); ready(page)
+        page.get_by_role("button", name="日", exact=True).click()  # 予約表は週が初期。人数は日の表示で見る
         page.locator("input[type=date]").fill("2026-11-13")
         page.wait_for_timeout(1500)
         cal = re.sub(r"\s+", " ", page.inner_text("main"))

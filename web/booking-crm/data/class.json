@@ -256,6 +256,52 @@
    "note": "お休み"
   }
  ],
+ "session_series": [
+  {
+   "id": "sr1",
+   "service_id": "cook_bread",
+   "staff_id": "t3",
+   "repeat": "weekly",
+   "start_day_offset": 4,
+   "until_day_offset": 46,
+   "time": "10:00",
+   "end_time": "13:00",
+   "capacity": 5
+  },
+  {
+   "id": "sr2",
+   "service_id": "cook_washoku",
+   "staff_id": "t2",
+   "repeat": "weekly",
+   "start_day_offset": 4,
+   "until_day_offset": 46,
+   "time": "18:30",
+   "end_time": "21:00",
+   "capacity": 6
+  },
+  {
+   "id": "sr3",
+   "service_id": "cook_western",
+   "staff_id": "t2",
+   "repeat": "weekly",
+   "start_day_offset": 5,
+   "until_day_offset": 47,
+   "time": "10:00",
+   "end_time": "12:30",
+   "capacity": 6
+  },
+  {
+   "id": "sr4",
+   "service_id": "cook_italian",
+   "staff_id": "t1",
+   "repeat": "monthly",
+   "start_day_offset": 8,
+   "until_day_offset": 69,
+   "time": "18:30",
+   "end_time": "20:30",
+   "capacity": 6
+  }
+ ],
  "class_sessions": [
   {
    "id": "cs02",
@@ -501,24 +547,6 @@
    "capacity": 5
   },
   {
-   "id": "cs37",
-   "service_id": "cook_sweets",
-   "staff_id": "t2",
-   "day_offset": 0,
-   "time": "18:30",
-   "end_time": "21:00",
-   "capacity": 6
-  },
-  {
-   "id": "cs38",
-   "service_id": "cook_italian",
-   "staff_id": "t3",
-   "day_offset": 1,
-   "time": "10:00",
-   "end_time": "12:00",
-   "capacity": 6
-  },
-  {
    "id": "cs39",
    "service_id": "cook_trial",
    "staff_id": "t2",
@@ -526,15 +554,6 @@
    "time": "10:00",
    "end_time": "12:00",
    "capacity": 8
-  },
-  {
-   "id": "cs40",
-   "service_id": "cook_ferment",
-   "staff_id": "t3",
-   "day_offset": 2,
-   "time": "10:00",
-   "end_time": "12:00",
-   "capacity": 4
   },
   {
    "id": "cs41",
@@ -552,7 +571,8 @@
    "day_offset": 4,
    "time": "10:00",
    "end_time": "13:00",
-   "capacity": 5
+   "capacity": 5,
+   "series_id": "sr1"
   },
   {
    "id": "cs43",
@@ -561,7 +581,8 @@
    "day_offset": 4,
    "time": "18:30",
    "end_time": "21:00",
-   "capacity": 6
+   "capacity": 6,
+   "series_id": "sr2"
   },
   {
    "id": "cs44",
@@ -570,7 +591,8 @@
    "day_offset": 5,
    "time": "10:00",
    "end_time": "12:30",
-   "capacity": 6
+   "capacity": 6,
+   "series_id": "sr3"
   },
   {
    "id": "cs45",
@@ -588,16 +610,8 @@
    "day_offset": 8,
    "time": "18:30",
    "end_time": "20:30",
-   "capacity": 6
-  },
-  {
-   "id": "cs47",
-   "service_id": "cook_trial",
-   "staff_id": "t2",
-   "day_offset": 9,
-   "time": "14:00",
-   "end_time": "16:00",
-   "capacity": 8
+   "capacity": 6,
+   "series_id": "sr4"
   },
   {
    "id": "cs48",
@@ -624,16 +638,8 @@
    "day_offset": 11,
    "time": "10:00",
    "end_time": "13:00",
-   "capacity": 5
-  },
-  {
-   "id": "cs51",
-   "service_id": "cook_western",
-   "staff_id": "t3",
-   "day_offset": 11,
-   "time": "14:00",
-   "end_time": "16:30",
-   "capacity": 6
+   "capacity": 5,
+   "series_id": "sr1"
   },
   {
    "id": "cs52",
@@ -642,7 +648,178 @@
    "day_offset": 11,
    "time": "18:30",
    "end_time": "21:00",
-   "capacity": 6
+   "capacity": 6,
+   "series_id": "sr2"
+  },
+  {
+   "id": "cs53",
+   "service_id": "cook_bread",
+   "staff_id": "t3",
+   "day_offset": 18,
+   "time": "10:00",
+   "end_time": "13:00",
+   "capacity": 5,
+   "series_id": "sr1"
+  },
+  {
+   "id": "cs58",
+   "service_id": "cook_washoku",
+   "staff_id": "t2",
+   "day_offset": 18,
+   "time": "18:30",
+   "end_time": "21:00",
+   "capacity": 6,
+   "series_id": "sr2"
+  },
+  {
+   "id": "cs63",
+   "service_id": "cook_western",
+   "staff_id": "t2",
+   "day_offset": 19,
+   "time": "10:00",
+   "end_time": "12:30",
+   "capacity": 6,
+   "series_id": "sr3"
+  },
+  {
+   "id": "cs54",
+   "service_id": "cook_bread",
+   "staff_id": "t3",
+   "day_offset": 25,
+   "time": "10:00",
+   "end_time": "13:00",
+   "capacity": 5,
+   "series_id": "sr1"
+  },
+  {
+   "id": "cs59",
+   "service_id": "cook_washoku",
+   "staff_id": "t2",
+   "day_offset": 25,
+   "time": "18:30",
+   "end_time": "21:00",
+   "capacity": 6,
+   "series_id": "sr2"
+  },
+  {
+   "id": "cs64",
+   "service_id": "cook_western",
+   "staff_id": "t2",
+   "day_offset": 26,
+   "time": "10:00",
+   "end_time": "12:30",
+   "capacity": 6,
+   "series_id": "sr3"
+  },
+  {
+   "id": "cs55",
+   "service_id": "cook_bread",
+   "staff_id": "t3",
+   "day_offset": 32,
+   "time": "10:00",
+   "end_time": "13:00",
+   "capacity": 5,
+   "series_id": "sr1"
+  },
+  {
+   "id": "cs60",
+   "service_id": "cook_washoku",
+   "staff_id": "t2",
+   "day_offset": 32,
+   "time": "18:30",
+   "end_time": "21:00",
+   "capacity": 6,
+   "series_id": "sr2"
+  },
+  {
+   "id": "cs65",
+   "service_id": "cook_western",
+   "staff_id": "t2",
+   "day_offset": 33,
+   "time": "10:00",
+   "end_time": "12:30",
+   "capacity": 6,
+   "series_id": "sr3"
+  },
+  {
+   "id": "cs68",
+   "service_id": "cook_italian",
+   "staff_id": "t1",
+   "day_offset": 38,
+   "time": "18:30",
+   "end_time": "20:30",
+   "capacity": 6,
+   "series_id": "sr4"
+  },
+  {
+   "id": "cs56",
+   "service_id": "cook_bread",
+   "staff_id": "t3",
+   "day_offset": 39,
+   "time": "10:00",
+   "end_time": "13:00",
+   "capacity": 5,
+   "series_id": "sr1"
+  },
+  {
+   "id": "cs61",
+   "service_id": "cook_washoku",
+   "staff_id": "t2",
+   "day_offset": 39,
+   "time": "18:30",
+   "end_time": "21:00",
+   "capacity": 6,
+   "series_id": "sr2"
+  },
+  {
+   "id": "cs66",
+   "service_id": "cook_western",
+   "staff_id": "t2",
+   "day_offset": 40,
+   "time": "10:00",
+   "end_time": "12:30",
+   "capacity": 6,
+   "series_id": "sr3"
+  },
+  {
+   "id": "cs57",
+   "service_id": "cook_bread",
+   "staff_id": "t3",
+   "day_offset": 46,
+   "time": "10:00",
+   "end_time": "13:00",
+   "capacity": 5,
+   "series_id": "sr1"
+  },
+  {
+   "id": "cs62",
+   "service_id": "cook_washoku",
+   "staff_id": "t2",
+   "day_offset": 46,
+   "time": "18:30",
+   "end_time": "21:00",
+   "capacity": 6,
+   "series_id": "sr2"
+  },
+  {
+   "id": "cs67",
+   "service_id": "cook_western",
+   "staff_id": "t2",
+   "day_offset": 47,
+   "time": "10:00",
+   "end_time": "12:30",
+   "capacity": 6,
+   "series_id": "sr3"
+  },
+  {
+   "id": "cs69",
+   "service_id": "cook_italian",
+   "staff_id": "t1",
+   "day_offset": 69,
+   "time": "18:30",
+   "end_time": "20:30",
+   "capacity": 6,
+   "series_id": "sr4"
   }
  ],
  "customers": [

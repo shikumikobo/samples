@@ -4,12 +4,15 @@ import { SHOP_WORDS } from './words';
 import {
   buildContactMessage,
   checkHours,
+  checkRepeat,
   countDay,
   describeHistory,
   filterCustomers,
   groupBy,
   mdhm,
+  occurrences,
   range,
+  repeatLabel,
   trialKind,
   weekDays,
   weekStart,
@@ -143,5 +146,37 @@ describe('お店側の言葉（サロンと教室を混ぜない）', () => {
     expect(t).not.toMatch(/予約|お客さん|来店/);
     const s = Object.values(SHOP_WORDS.salon).join(' ');
     expect(s).not.toMatch(/申込み|参加者|出席/);
+  });
+});
+
+describe('教室のくり返し（毎週・毎月）', () => {
+  it('日にち限定は、はじめの日の1回だけ', () => {
+    expect(occurrences('none', '2026-11-13', '')).toEqual(['2026-11-13']);
+  });
+  it('毎週は7日おき。期限の日も含む', () => {
+    expect(occurrences('weekly', '2026-11-13', '2026-12-04')).toEqual(['2026-11-13', '2026-11-20', '2026-11-27', '2026-12-04']);
+    expect(occurrences('weekly', '2026-11-13', '2026-12-03')).toHaveLength(3);
+  });
+  it('毎月は同じ日付。その月にない日は月末（31日 → 2月は28日）', () => {
+    expect(occurrences('monthly', '2026-11-17', '2027-01-17')).toEqual(['2026-11-17', '2026-12-17', '2027-01-17']);
+    expect(occurrences('monthly', '2026-12-31', '2027-03-31')).toEqual(['2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31']);
+    expect(occurrences('monthly', '2027-01-30', '2027-03-30')).toEqual(['2027-01-30', '2027-02-28', '2027-03-30']);
+  });
+  it('期限がはじめの日より前なら空', () => {
+    expect(occurrences('weekly', '2026-11-13', '2026-11-12')).toEqual([]);
+  });
+  it('期限の確認：空・前・1年超・多すぎ', () => {
+    expect(checkRepeat('none', '2026-11-13', '')).toBeNull();
+    expect(checkRepeat('weekly', '2026-11-13', '')).toMatch(/いつまで/);
+    expect(checkRepeat('weekly', '2026-11-13', '2026-11-01')).toMatch(/後の日/);
+    expect(checkRepeat('weekly', '2026-11-13', '2028-01-01')).toMatch(/1年以内/);
+    expect(checkRepeat('weekly', '2026-11-13', '2026-12-25')).toBeNull();
+    expect(checkRepeat('weekly', '2026-11-13', '2027-11-12')).toBeNull(); // 1年以内なら53回まで
+    expect(checkRepeat('monthly', '2026-11-13', '2027-11-13')).toBeNull();
+  });
+  it('表示：毎週 金曜／毎月 17日', () => {
+    expect(repeatLabel('weekly', '2026-11-13')).toBe('毎週 金曜');
+    expect(repeatLabel('monthly', '2026-11-17')).toBe('毎月 17日');
+    expect(repeatLabel('none', '2026-11-17')).toBe('日にち限定');
   });
 });

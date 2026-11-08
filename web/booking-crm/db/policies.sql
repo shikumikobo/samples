@@ -25,6 +25,7 @@ grant update (name, kana, phone, email) on customers to app_customer;
 -- 書く（お店だけ）
 grant insert, update on services, staff, class_sessions, customers to app_shop;
 grant delete on services, class_sessions to app_shop;
+grant select, insert, update, delete on session_series to app_shop;
 grant insert, update, delete on staff_hours, staff_off to app_shop;
 grant update on settings to app_shop;
 grant usage on sequence reservation_seq to app_customer, app_shop;
@@ -37,6 +38,7 @@ alter table staff          enable row level security;
 alter table staff_hours    enable row level security;
 alter table staff_off      enable row level security;
 alter table class_sessions enable row level security;
+alter table session_series  enable row level security;
 alter table customers      enable row level security;
 alter table reservations   enable row level security;
 alter table history        enable row level security;
@@ -56,6 +58,7 @@ create policy staff_shop    on staff          for all to app_shop using (true) w
 create policy hours_shop    on staff_hours    for all to app_shop using (true) with check (true);
 create policy off_shop      on staff_off      for all to app_shop using (true) with check (true);
 create policy sessions_shop on class_sessions for all to app_shop using (true) with check (true);
+create policy series_shop   on session_series for all to app_shop using (true) with check (true);
 
 -- お客さん：自分の行だけ
 create policy customers_shop on customers for all to app_shop using (true) with check (true);

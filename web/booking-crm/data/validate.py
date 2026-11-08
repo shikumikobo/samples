@@ -16,6 +16,8 @@ COLS = {
     "reservations": ["id", "customer_id", "service_id", "staff_id", "session_id", "day_offset", "time", "end_time", "price",
                      "is_trial", "status", "created_day_offset", "created_time"],
 }
+OPTIONAL = {("class_sessions", "series_id")}
+SERIES_COLS = ["id", "service_id", "staff_id", "repeat", "start_day_offset", "until_day_offset", "time", "end_time", "capacity"]
 NULLABLE = {("services", "return_days"), ("customers", "email"), ("reservations", "session_id")}
 NOT_EMPTY_OK = {("customers", "note"), ("customers", "caution"), ("staff_off", "note")}
 # 今日（day_offset=0）が月曜。0=日 … 6=土
@@ -56,7 +58,7 @@ def check(path):
                 elif row[c] == "" and (t, c) not in NOT_EMPTY_OK:
                     E(f"{t}[{n}].{c} が空")
             for c in row:
-                if c not in cols:
+                if c not in cols and (t, c) not in OPTIONAL:
                     E(f"{t}[{n}] に知らない列 {c}")
     for t in ("services", "staff", "class_sessions", "customers", "reservations"):
         ids = [r["id"] for r in d[t]]
@@ -130,6 +132,27 @@ def check(path):
             E(f"{s['id']} の参照が不正")
         if not 4 <= s["capacity"] <= 8:
             E(f"{s['id']} の定員が {s['capacity']}")
+    # くり返し（教室だけ）：毎週3・毎月1。日にち限定の先の枠は5
+    series = d.get("session_series", [])
+    for r in series:
+        for c in SERIES_COLS:
+            if c not in r:
+                E(f"session_series {r.get('id')} に列 {c}がない")
+        if r.get("repeat") not in ("weekly", "monthly"):
+            E(f"session_series {r.get('id')} の repeat が不正")
+    sids = {r["id"] for r in series}
+    for s in d["class_sessions"]:
+        if s.get("series_id") is not None and s["series_id"] not in sids:
+            E(f"{s['id']} の series_id が不正")
+    if is_class:
+        weekly = sum(r["repeat"] == "weekly" for r in series)
+        monthly = sum(r["repeat"] == "monthly" for r in series)
+        oneoff = sum(1 for s in d["class_sessions"] if s["day_offset"] >= 0 and s.get("series_id") is None)
+        if (oneoff, weekly, monthly) != (5, 3, 1):
+            E(f"先の開催日が 日にち限定{oneoff}・毎週{weekly}・毎月{monthly}（5・3・1 にする）")
+        info.append(f"くり返し 毎週{weekly}・毎月{monthly}、日にち限定の先の枠 {oneoff}")
+    elif series:
+        E("サロンに session_series がある")
     if is_class:
         caps = sorted({s["capacity"] for s in d["class_sessions"]})
         days = [s["day_offset"] for s in d["class_sessions"]]
@@ -228,15 +251,15 @@ def check(path):
         E(f"体験→通常に来た人が {len(conv)} 人")
     info.append(f"体験の予約 {sum(tcount.values())} 件、体験→通常に来た人 {len(conv)} 人")
 
-    # そろそろ来店（最後の visited + return_days が今日以前）
+    # 販売促進（最後の visited + return_days が今日以前）
     last = {}
     for r in sorted(res, key=lambda r: (r["day_offset"], r["time"])):
         if r["status"] == "visited":
             last[r["customer_id"]] = r
     due = sorted(c for c, r in last.items() if r["day_offset"] + svc[r["service_id"]]["return_days"] <= 0)
     if not 3 <= len(due) <= 8:
-        E(f"そろそろ来店が {len(due)} 人（3〜8人にする）")
-    info.append(f"そろそろ来店 {len(due)} 人 {due}")
+        E(f"販売促進の対象が {len(due)} 人（3〜8人にする）")
+    info.append(f"販売促進 {len(due)} 人 {due}")
 
     st = Counter(r["status"] for r in res)
     info.insert(0, f"サービス {len(svc)}・担当 {len(staff)}・顧客 {len(cust)}・予約 {len(res)}（過去 {len(past)}・先 {len(fut)}）"

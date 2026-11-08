@@ -1,4 +1,4 @@
-// サロン用・教室用の両方のデータで、同じ決まりが通ることを確かめる（予約の決まり・体験・期限・権限・履歴・そろそろ来店）。
+// サロン用・教室用の両方のデータで、同じ決まりが通ることを確かめる（予約の決まり・体験・期限・権限・履歴・販売促進）。
 import { test, describe, before, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDb, as, errorOf, at, rows } from './helpers.mjs';
@@ -175,7 +175,7 @@ for (const [name, cfg] of Object.entries(CFGS)) {
       });
     });
 
-    test('権限：そろそろ来店の一覧はお店だけ', async () => {
+    test('権限：販売促進の一覧はお店だけ', async () => {
       assert.equal(code(await err(() => as(db, 'customer', 'c1', (q) => q(`select * from due_for_return('2026-11-09')`)))), 'FORBIDDEN');
     });
 

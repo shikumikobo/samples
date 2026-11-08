@@ -13,7 +13,7 @@ const salon = {
   visited: '来店済み',
   book: '予約する',
   trial: '体験',
-  return_list: 'そろそろ来店',
+  return_list: '販売促進',
   return_desc: '前回の来店から、目安の日数が過ぎたお客さんです。',
   noshow: '無断欠席',
   booked: '予約済み',
@@ -30,7 +30,7 @@ const salon = {
   page_calendar: '予約表',
   page_customers: 'お客さん一覧',
   page_customer_detail: 'お客さんのカルテ',
-  page_return: 'そろそろ来店',
+  page_return: '販売促進',
   page_settings: 'メニュー・営業時間・休み',
   // 上の帯の項目
   nav_book: '予約する',
@@ -38,7 +38,7 @@ const salon = {
   nav_today: '今日',
   nav_calendar: '予約表',
   nav_customers: 'お客さん',
-  nav_return: 'そろそろ来店',
+  nav_return: '販売促進',
   nav_settings: '設定',
 } as const;
 
@@ -55,7 +55,7 @@ const klass: Words = {
   visited: '出席済み',
   book: '申し込む',
   trial: '体験',
-  return_list: 'そろそろ再受講',
+  return_list: '販売促進',
   return_desc: '前回の出席から、目安の日数が過ぎた生徒です。',
   noshow: '無断欠席',
   booked: '申込み済み',
@@ -71,14 +71,14 @@ const klass: Words = {
   page_calendar: 'クラス表',
   page_customers: '生徒一覧',
   page_customer_detail: '生徒のカルテ',
-  page_return: 'そろそろ再受講',
+  page_return: '販売促進',
   page_settings: 'コース・営業時間・休み',
   nav_book: '申し込む',
   nav_my: '私の申込み',
   nav_today: '今日',
   nav_calendar: 'クラス表',
   nav_customers: '生徒',
-  nav_return: 'そろそろ再受講',
+  nav_return: '販売促進',
   nav_settings: '設定',
 };
 

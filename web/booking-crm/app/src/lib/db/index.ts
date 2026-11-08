@@ -12,6 +12,8 @@ export const DB_ROLES = { customer: 'app_customer', shop: 'app_shop' } as const;
 export const DB_NAME = 'idb://booking-crm';
 export const MODE_KEY = 'booking-crm.mode';
 export const DEFAULT_MODE: Mode = 'salon';
+/** 定義（db/*.sql）の版。上げると、ブラウザに残っている古い DB を、最初のデータで作り直す（2：教室のくり返し） */
+export const SCHEMA_VERSION = 2;
 
 export type Db = PGlite;
 let dbPromise: Promise<Db> | null = null;
@@ -40,7 +42,14 @@ export async function createDb(mode: Mode = getStoredMode(), dataDir?: string): 
   // 準備が最後まで終わったときだけ付く印（_demo_ready。中身はモード）で見分ける。途中で閉じても、モードが違っても、作り直す
   const ready = await db.query<{ t: string | null }>(`select to_regclass('public._demo_ready')::text as t`);
   let current: string | null = null;
-  if (ready.rows[0]?.t) current = (await db.query<{ mode: string }>('select mode from public._demo_ready limit 1')).rows[0]?.mode ?? null;
+  if (ready.rows[0]?.t) {
+    try {
+      const r = (await db.query<{ mode: string; v: number }>('select mode, v from public._demo_ready limit 1')).rows[0];
+      if (r && r.v === SCHEMA_VERSION) current = r.mode;
+    } catch {
+      current = null; // 古い形の印（v がない）は、作り直す
+    }
+  }
   if (current !== mode) await loadAll(db, mode);
   return db;
 }
@@ -66,8 +75,8 @@ async function loadAll(db: Db, mode: Mode): Promise<void> {
   if (has.rows[0]?.t) {
     await db.query(`insert into public.settings (key, value) values ('mode', $1) on conflict (key) do update set value = excluded.value`, [mode]);
   }
-  await db.exec('create table public._demo_ready (mode text)'); // 最後に付ける印
-  await db.query('insert into public._demo_ready values ($1)', [mode]);
+  await db.exec('create table public._demo_ready (mode text, v int)'); // 最後に付ける印（モードと定義の版）
+  await db.query('insert into public._demo_ready values ($1, $2)', [mode, SCHEMA_VERSION]);
 }
 
 export function getDb(): Promise<Db> {

@@ -1,7 +1,7 @@
 // お店側の画面の SQL。必ず withRole('shop', null, ...) の中から呼ぶ（tx を受け取る）。
 import { q } from '@/lib/db';
 import type { Transaction } from '@electric-sql/pglite';
-import type { CustomerRow, HistoryRow, Rsv } from './lib';
+import { occurrences, checkRepeat, type CustomerRow, type HistoryRow, type Repeat, type Rsv } from './lib';
 
 export type Tx = Pick<Transaction, 'query'>;
 const TS = (c: string) => `to_char(${c} at time zone 'Asia/Tokyo', 'YYYY-MM-DD"T"HH24:MI:SS"+09:00"')`;
@@ -61,12 +61,13 @@ export interface SessionRow {
   ends_at: string;
   capacity: number;
   booked: number;
+  series_id: string | null;
 }
 /** 教室の枠と、キャンセル以外の人数 */
 export async function loadSessions(tx: Tx, from: string, to: string): Promise<SessionRow[]> {
   return q<SessionRow>(
     tx,
-    `select cs.id, cs.service_id, s.name as service_name, cs.staff_id, ${TS('cs.starts_at')} as starts_at, ${TS('cs.ends_at')} as ends_at, cs.capacity,
+    `select cs.id, cs.service_id, s.name as service_name, cs.staff_id, ${TS('cs.starts_at')} as starts_at, ${TS('cs.ends_at')} as ends_at, cs.capacity, cs.series_id,
             (select count(*)::int from reservations r where r.session_id = cs.id and r.status <> 'canceled') as booked
      from class_sessions cs join services s on s.id = cs.service_id
      where local_day(cs.starts_at) between $1::date and $2::date order by cs.starts_at, cs.id`,
@@ -99,23 +100,120 @@ async function sessionBlocked(tx: Tx, x: SessionInput, exceptId: string | null):
   const f = await tx.query<{ n: number }>('select count(*)::int as n from staff_off where staff_id = $1 and day = $2::date', [x.staff_id, x.day]);
   return (f.rows[0]?.n ?? 0) > 0;
 }
-/** 開催日を足す。count が2以上なら、毎週同じ曜日に count 回。重なる日・休みの日は飛ばす */
-export async function addSessions(tx: Tx, x: SessionInput, count: number): Promise<{ added: number; skipped: number }> {
+let idSeq = 0;
+const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}${(idSeq++).toString(36)}`;
+
+export interface SeriesRow {
+  id: string;
+  service_id: string;
+  service_name: string;
+  staff_id: string;
+  repeat: 'weekly' | 'monthly';
+  start_day: string;
+  until_day: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+}
+/** 教室のくり返し（期限が今日以降のもの） */
+export async function loadSeries(tx: Tx, today: string): Promise<SeriesRow[]> {
+  return q<SeriesRow>(
+    tx,
+    `select ss.id, ss.service_id, s.name as service_name, ss.staff_id, ss.repeat,
+            to_char(ss.start_day, 'YYYY-MM-DD') as start_day, to_char(ss.until_day, 'YYYY-MM-DD') as until_day,
+            to_char(ss.start_time, 'HH24:MI') as start_time, to_char(ss.end_time, 'HH24:MI') as end_time, ss.capacity
+     from session_series ss join services s on s.id = ss.service_id
+     where ss.until_day >= $1::date order by ss.start_day, ss.id`,
+    [today],
+  );
+}
+
+async function insertSession(tx: Tx, x: SessionInput, seriesId: string | null): Promise<void> {
+  await tx.query(
+    `insert into class_sessions (id, service_id, staff_id, starts_at, ends_at, capacity, series_id) values ($1, $2, $3, $4::timestamptz, $5::timestamptz, $6, $7)`,
+    [newId('cs'), x.service_id, x.staff_id, at(x.day, x.start), at(x.day, x.end), x.capacity, seriesId],
+  );
+}
+
+/**
+ * 開催日を足す。repeat が 'none' なら1回だけ（日にち限定）。
+ * 'weekly'（毎週）・'monthly'（毎月）なら、until（期限）まで。くり返しの決まりも残す。重なる日・休みの日は飛ばす。
+ * エラーなら error に文。
+ */
+export async function addSessions(tx: Tx, x: SessionInput, repeat: Repeat, until: string): Promise<{ added: number; skipped: number; error?: string }> {
+  const bad = checkRepeat(repeat, x.day, until);
+  if (bad) return { added: 0, skipped: 0, error: bad };
+  const days = occurrences(repeat, x.day, until);
+  let seriesId: string | null = null;
+  if (repeat !== 'none') {
+    seriesId = newId('sr');
+    await tx.query(
+      `insert into session_series (id, service_id, staff_id, repeat, start_day, until_day, start_time, end_time, capacity) values ($1, $2, $3, $4, $5::date, $6::date, $7::time, $8::time, $9)`,
+      [seriesId, x.service_id, x.staff_id, repeat, x.day, until, x.start, x.end, x.capacity],
+    );
+  }
   let added = 0;
   let skipped = 0;
-  for (let i = 0; i < count; i++) {
-    const one = { ...x, day: addDays(x.day, 7 * i) };
+  for (const day of days) {
+    const one = { ...x, day };
     if (await sessionBlocked(tx, one, null)) {
       skipped++;
       continue;
     }
-    await tx.query(
-      `insert into class_sessions (id, service_id, staff_id, starts_at, ends_at, capacity) values ($1, $2, $3, $4::timestamptz, $5::timestamptz, $6)`,
-      [`cs_${Date.now().toString(36)}${i}`, one.service_id, one.staff_id, at(one.day, one.start), at(one.day, one.end), one.capacity],
-    );
+    await insertSession(tx, one, seriesId);
     added++;
   }
+  if (added === 0 && seriesId) await tx.query('delete from session_series where id = $1', [seriesId]);
   return { added, skipped };
+}
+
+/** くり返しの期限を変える。延ばすと足し、縮めると、期限のあとの日（今日以降）を消す（予約の記録がある日は、日にち限定として残す） */
+export async function changeSeriesUntil(tx: Tx, sr: SeriesRow, until: string, today: string): Promise<{ added: number; skipped: number; removed: number; kept: number; error?: string }> {
+  const none = { added: 0, skipped: 0, removed: 0, kept: 0 };
+  const bad = checkRepeat(sr.repeat, sr.start_day, until);
+  if (bad) return { ...none, error: bad };
+  let added = 0;
+  let skipped = 0;
+  let removed = 0;
+  let kept = 0;
+  if (until > sr.until_day) {
+    for (const day of occurrences(sr.repeat, sr.start_day, until).filter((d) => d > sr.until_day)) {
+      const one = { service_id: sr.service_id, staff_id: sr.staff_id, day, start: sr.start_time, end: sr.end_time, capacity: sr.capacity };
+      if (await sessionBlocked(tx, one, null)) {
+        skipped++;
+        continue;
+      }
+      await insertSession(tx, one, sr.id);
+      added++;
+    }
+  } else if (until < sr.until_day) {
+    const r = await releaseSessions(tx, sr.id, until < today ? today : addDays(until, 1));
+    removed = r.removed;
+    kept = r.kept;
+  }
+  await tx.query('update session_series set until_day = $2::date where id = $1', [sr.id, until]);
+  return { added, skipped, removed, kept };
+}
+
+/** くり返しの、from 以降の日を消す。予約の記録がある日は消さず、くり返しから外して残す */
+async function releaseSessions(tx: Tx, seriesId: string, from: string): Promise<{ removed: number; kept: number }> {
+  const del = await tx.query(
+    `delete from class_sessions cs where cs.series_id = $1 and local_day(cs.starts_at) >= $2::date
+       and not exists (select 1 from reservations r where r.session_id = cs.id) returning cs.id`,
+    [seriesId, from],
+  );
+  const keep = await tx.query(
+    `update class_sessions set series_id = null where series_id = $1 and local_day(starts_at) >= $2::date returning id`,
+    [seriesId, from],
+  );
+  return { removed: del.rows.length, kept: keep.rows.length };
+}
+
+/** くり返しをやめる：今日以降の日を消す（予約の記録がある日は、日にち限定として残す）。過去の日は、日にち限定として残る */
+export async function removeSeries(tx: Tx, seriesId: string, today: string): Promise<{ removed: number; kept: number }> {
+  const r = await releaseSessions(tx, seriesId, today);
+  await tx.query('delete from session_series where id = $1', [seriesId]);
+  return r;
 }
 /** 開催日を直す。エラーなら文、問題なければ null */
 export async function updateSession(tx: Tx, id: string, x: SessionInput, booked: number): Promise<string | null> {
@@ -279,6 +377,7 @@ export async function serviceUseCount(tx: Tx, id: string): Promise<number> {
 }
 export async function removeService(tx: Tx, id: string): Promise<void> {
   await tx.query('delete from class_sessions where service_id = $1', [id]);
+  await tx.query('delete from session_series where service_id = $1', [id]);
   await tx.query('delete from services where id = $1', [id]);
 }
 /** 担当（講師）の名前・肩書きを直す */

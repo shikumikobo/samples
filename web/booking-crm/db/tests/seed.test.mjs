@@ -73,7 +73,7 @@ for (const [name, expectDue] of [['salon', null], ['class', null]]) {
       assert.ok(booked >= svcs.length - 1, `予約できたサービス ${booked} / ${svcs.length}`);
     });
 
-    test('そろそろ来店の一覧が出る（3〜8人）', async () => {
+    test('販売促進の一覧が出る（3〜8人）', async () => {
       const n = (await as(db, 'shop', null, (q) => q(`select * from due_for_return('2026-11-09')`))).rows.length;
       assert.ok(n >= 3 && n <= 8, `n=${n}`);
     });

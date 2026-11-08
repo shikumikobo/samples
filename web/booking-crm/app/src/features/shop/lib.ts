@@ -187,3 +187,54 @@ export function checkHours(open: string, close: string): string | null {
   if (open >= close) return '終了は開始より後の時刻にしてください。';
   return null;
 }
+
+// ── 教室のくり返し（毎週・毎月） ──
+export type Repeat = 'none' | 'weekly' | 'monthly';
+export const MAX_OCCURRENCES = 60;
+const MAX_SPAN_DAYS = 366;
+
+const daysIn = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate(); // m は 1〜12
+
+/**
+ * くり返しの日にち（YYYY-MM-DD の配列）。start から until まで（両端を含む）。
+ * weekly＝7日おき（同じ曜日）／monthly＝毎月 start と同じ日付（その月にない日は月末）。none は start だけ。
+ */
+export function occurrences(repeat: Repeat, start: string, until: string): string[] {
+  if (repeat === 'none') return [start];
+  if (!start || !until || until < start) return [];
+  const out: string[] = [];
+  if (repeat === 'weekly') {
+    for (let d = start; d <= until && out.length <= MAX_OCCURRENCES; d = addDays(d, 7)) out.push(d);
+    return out;
+  }
+  const y0 = Number(start.slice(0, 4));
+  const m0 = Number(start.slice(5, 7));
+  const d0 = Number(start.slice(8, 10));
+  for (let k = 0; out.length <= MAX_OCCURRENCES; k++) {
+    const m = m0 - 1 + k;
+    const y = y0 + Math.floor(m / 12);
+    const mo = (m % 12) + 1;
+    const day = `${y}-${String(mo).padStart(2, '0')}-${String(Math.min(d0, daysIn(y, mo))).padStart(2, '0')}`;
+    if (day > until) break;
+    out.push(day);
+  }
+  return out;
+}
+
+/** くり返しの期限の確認。問題があれば日本語の文、なければ null */
+export function checkRepeat(repeat: Repeat, start: string, until: string): string | null {
+  if (repeat === 'none') return null;
+  if (!until) return '「いつまで」の日付を入れてください。';
+  if (until < start) return '「いつまで」は、はじめの日と同じか、それより後の日にしてください。';
+  if (until > addDays(start, MAX_SPAN_DAYS)) return '「いつまで」は、はじめの日から1年以内にしてください。';
+  if (occurrences(repeat, start, until).length > MAX_OCCURRENCES) return `回数が多すぎます（最大${MAX_OCCURRENCES}回）。「いつまで」を早めてください。`;
+  return null;
+}
+
+const WEEK_JA = ['日', '月', '火', '水', '木', '金', '土'];
+/** 毎週 金曜／毎月 17日 */
+export function repeatLabel(repeat: Repeat, start: string): string {
+  if (repeat === 'weekly') return `毎週 ${WEEK_JA[weekday(start)]}曜`;
+  if (repeat === 'monthly') return `毎月 ${Number(start.slice(8, 10))}日`;
+  return '日にち限定';
+}
