@@ -1,0 +1,229 @@
+{
+ "settings": {
+  "mode": "class",
+  "demo_today": "2026-11-09",
+  "slot_minutes": "15",
+  "booking_window_days": "60",
+  "min_lead_hours": "2",
+  "max_per_day": "2",
+  "cancel_deadline": "prev_day_end"
+ },
+ "services": [
+  {
+   "id": "cl1",
+   "name": "基本コース",
+   "kind": "class",
+   "duration_min": 120,
+   "price": 4500,
+   "return_days": 60
+  },
+  {
+   "id": "cl_trial",
+   "name": "体験",
+   "kind": "class",
+   "duration_min": 120,
+   "price": 2000,
+   "is_trial": true,
+   "first_time_only": true
+  }
+ ],
+ "staff": [
+  {
+   "id": "t1",
+   "name": "講師A",
+   "title": "講師"
+  },
+  {
+   "id": "t2",
+   "name": "講師B",
+   "title": "講師"
+  }
+ ],
+ "staff_hours": [],
+ "staff_off": [
+  {
+   "staff_id": "t2",
+   "day_offset": 9,
+   "note": "休み"
+  }
+ ],
+ "class_sessions": [
+  {
+   "id": "cs0",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": 0,
+   "time": "10:00",
+   "capacity": 4
+  },
+  {
+   "id": "cs_today",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": 0,
+   "time": "15:00",
+   "capacity": 4
+  },
+  {
+   "id": "cs1",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": 1,
+   "time": "10:00",
+   "capacity": 2
+  },
+  {
+   "id": "cs6",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": 1,
+   "time": "14:00",
+   "capacity": 5
+  },
+  {
+   "id": "cs7",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": 1,
+   "time": "18:00",
+   "capacity": 5
+  },
+  {
+   "id": "cs2",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": 2,
+   "time": "10:00",
+   "capacity": 2
+  },
+  {
+   "id": "cs_t",
+   "service_id": "cl_trial",
+   "staff_id": "t2",
+   "day_offset": 3,
+   "time": "14:00",
+   "capacity": 3
+  },
+  {
+   "id": "cs_off",
+   "service_id": "cl1",
+   "staff_id": "t2",
+   "day_offset": 9,
+   "time": "10:00",
+   "capacity": 3
+  },
+  {
+   "id": "cs_far",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": 70,
+   "time": "10:00",
+   "capacity": 3
+  },
+  {
+   "id": "cs_past",
+   "service_id": "cl1",
+   "staff_id": "t1",
+   "day_offset": -20,
+   "time": "10:00",
+   "capacity": 4
+  }
+ ],
+ "customers": [
+  {
+   "id": "c1",
+   "name": "生徒 一",
+   "kana": "生徒 一",
+   "phone": "090-0000-0001",
+   "email": "c1@example.com",
+   "note": "常連",
+   "caution": "えび",
+   "created_offset": -100
+  },
+  {
+   "id": "c2",
+   "name": "生徒 二",
+   "kana": "生徒 二",
+   "phone": "090-0000-0002",
+   "email": "c2@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c3",
+   "name": "生徒 三",
+   "kana": "生徒 三",
+   "phone": "090-0000-0003",
+   "email": "c3@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c4",
+   "name": "生徒 四",
+   "kana": "生徒 四",
+   "phone": "090-0000-0003",
+   "email": "c4@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c5",
+   "name": "生徒 五",
+   "kana": "生徒 五",
+   "phone": "090-0000-0005",
+   "email": "c5@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c6",
+   "name": "生徒 六",
+   "kana": "生徒 六",
+   "phone": "090-0000-0006",
+   "email": "c6@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  }
+ ],
+ "reservations": [
+  {
+   "id": "r1",
+   "customer_id": "c1",
+   "service_id": "cl1",
+   "session_id": "cs1"
+  },
+  {
+   "id": "r2",
+   "customer_id": "c3",
+   "service_id": "cl1",
+   "session_id": "cs2"
+  },
+  {
+   "id": "r3",
+   "customer_id": "c1",
+   "service_id": "cl1",
+   "session_id": "cs_past",
+   "status": "visited"
+  },
+  {
+   "id": "r5",
+   "customer_id": "c3",
+   "service_id": "cl_trial",
+   "session_id": "cs_past",
+   "status": "visited",
+   "is_trial": true
+  },
+  {
+   "id": "r8",
+   "customer_id": "c4",
+   "service_id": "cl1",
+   "session_id": "cs_today"
+  }
+ ]
+}

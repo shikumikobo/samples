@@ -1,0 +1,255 @@
+{
+ "settings": {
+  "mode": "salon",
+  "demo_today": "2026-11-09",
+  "slot_minutes": "15",
+  "booking_window_days": "60",
+  "min_lead_hours": "2",
+  "max_per_day": "2",
+  "cancel_deadline": "prev_day_end"
+ },
+ "services": [
+  {
+   "id": "sv1",
+   "name": "ジェル",
+   "kind": "timed",
+   "duration_min": 60,
+   "price": 6000,
+   "return_days": 28
+  },
+  {
+   "id": "sv2",
+   "name": "ケア",
+   "kind": "timed",
+   "duration_min": 30,
+   "price": 3000,
+   "return_days": 21
+  },
+  {
+   "id": "sv_trial",
+   "name": "体験",
+   "kind": "timed",
+   "duration_min": 90,
+   "price": 2000,
+   "is_trial": true,
+   "first_time_only": true
+  }
+ ],
+ "staff": [
+  {
+   "id": "st1",
+   "name": "担当A",
+   "title": "ネイリスト"
+  },
+  {
+   "id": "st2",
+   "name": "担当B",
+   "title": "ネイリスト"
+  }
+ ],
+ "staff_hours": [
+  {
+   "staff_id": "st1",
+   "weekday": 1,
+   "open_time": "10:00",
+   "close_time": "19:00"
+  },
+  {
+   "staff_id": "st1",
+   "weekday": 2,
+   "open_time": "10:00",
+   "close_time": "19:00"
+  },
+  {
+   "staff_id": "st1",
+   "weekday": 3,
+   "open_time": "10:00",
+   "close_time": "19:00"
+  },
+  {
+   "staff_id": "st1",
+   "weekday": 4,
+   "open_time": "10:00",
+   "close_time": "19:00"
+  },
+  {
+   "staff_id": "st1",
+   "weekday": 5,
+   "open_time": "10:00",
+   "close_time": "19:00"
+  },
+  {
+   "staff_id": "st1",
+   "weekday": 6,
+   "open_time": "10:00",
+   "close_time": "19:00"
+  },
+  {
+   "staff_id": "st2",
+   "weekday": 1,
+   "open_time": "10:00",
+   "close_time": "18:00"
+  },
+  {
+   "staff_id": "st2",
+   "weekday": 2,
+   "open_time": "10:00",
+   "close_time": "18:00"
+  },
+  {
+   "staff_id": "st2",
+   "weekday": 3,
+   "open_time": "10:00",
+   "close_time": "18:00"
+  },
+  {
+   "staff_id": "st2",
+   "weekday": 4,
+   "open_time": "10:00",
+   "close_time": "18:00"
+  },
+  {
+   "staff_id": "st2",
+   "weekday": 5,
+   "open_time": "10:00",
+   "close_time": "18:00"
+  },
+  {
+   "staff_id": "st2",
+   "weekday": 6,
+   "open_time": "10:00",
+   "close_time": "18:00"
+  }
+ ],
+ "staff_off": [
+  {
+   "staff_id": "st2",
+   "day_offset": 3,
+   "note": "休み"
+  }
+ ],
+ "customers": [
+  {
+   "id": "c1",
+   "name": "試し 一",
+   "kana": "試し 一",
+   "phone": "090-0000-0001",
+   "email": "c1@example.com",
+   "note": "常連",
+   "caution": "ナッツ",
+   "created_offset": -100
+  },
+  {
+   "id": "c2",
+   "name": "試し 二",
+   "kana": "試し 二",
+   "phone": "090-0000-0002",
+   "email": "c2@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c3",
+   "name": "試し 三",
+   "kana": "試し 三",
+   "phone": "090-0000-0003",
+   "email": "c3@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c4",
+   "name": "試し 四",
+   "kana": "試し 四",
+   "phone": "090-0000-0003",
+   "email": "c4@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c5",
+   "name": "試し 五",
+   "kana": "試し 五",
+   "phone": "090-0000-0005",
+   "email": "c3@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  },
+  {
+   "id": "c6",
+   "name": "試し 六",
+   "kana": "試し 六",
+   "phone": "090-0000-0006",
+   "email": "c6@example.com",
+   "note": "",
+   "caution": "",
+   "created_offset": -100
+  }
+ ],
+ "reservations": [
+  {
+   "id": "r1",
+   "customer_id": "c1",
+   "service_id": "sv1",
+   "staff_id": "st1",
+   "day_offset": 1,
+   "time": "11:00"
+  },
+  {
+   "id": "r2",
+   "customer_id": "c2",
+   "service_id": "sv2",
+   "staff_id": "st1",
+   "day_offset": 1,
+   "time": "14:00"
+  },
+  {
+   "id": "r3",
+   "customer_id": "c1",
+   "service_id": "sv1",
+   "staff_id": "st1",
+   "day_offset": -30,
+   "time": "10:00",
+   "status": "visited"
+  },
+  {
+   "id": "r4",
+   "customer_id": "c2",
+   "service_id": "sv2",
+   "staff_id": "st1",
+   "day_offset": -10,
+   "time": "10:00",
+   "status": "visited"
+  },
+  {
+   "id": "r5",
+   "customer_id": "c3",
+   "service_id": "sv_trial",
+   "staff_id": "st1",
+   "day_offset": -5,
+   "time": "10:00",
+   "status": "visited"
+  },
+  {
+   "id": "r6",
+   "customer_id": "c6",
+   "service_id": "sv_trial",
+   "staff_id": "st1",
+   "day_offset": 2,
+   "time": "10:00",
+   "status": "canceled"
+  },
+  {
+   "id": "r8",
+   "customer_id": "c2",
+   "service_id": "sv2",
+   "staff_id": "st2",
+   "day_offset": 0,
+   "time": "15:00"
+  }
+ ]
+}
