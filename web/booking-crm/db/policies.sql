@@ -24,6 +24,7 @@ grant update (name, kana, phone, email) on customers to app_customer;
 
 -- 書く（お店だけ）
 grant insert, update on services, staff, class_sessions, customers to app_shop;
+grant delete on services, class_sessions to app_shop;
 grant insert, update, delete on staff_hours, staff_off to app_shop;
 grant update on settings to app_shop;
 grant usage on sequence reservation_seq to app_customer, app_shop;

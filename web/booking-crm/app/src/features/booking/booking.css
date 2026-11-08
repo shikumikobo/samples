@@ -106,3 +106,16 @@
 .cg-table td.g.sel button.cg-start, .cg-table td.g.sel button.cg-start:hover { background: transparent; }
 .cg-sum .txt p.err { display: block; -webkit-line-clamp: unset; overflow: visible; }
 @media (max-width: 480px) { .cg-sum .txt p { -webkit-line-clamp: 3; font-size: .9em; } }
+
+/* 日にちのカレンダー */
+.bk-cal { max-width: 420px; margin: 8px 0 var(--gap); background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px 8px; }
+.bk-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.bk-cal-head button { min-width: 44px; padding: 0; font-size: 1.3em; line-height: 1; }
+.bk-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.bk-cal-wd { font-size: .8em; color: var(--muted); padding: 2px 0; }
+.bk-cal-wd.sun, .bk-cal-day.sun { color: #b04a4a; }
+.bk-cal-wd.sat, .bk-cal-day.sat { color: #3f6fa8; }
+.bk-cal-day { min-height: 44px; padding: 0; border-radius: 10px; border: 1px solid var(--pri-soft); background: var(--pri-soft); font-weight: bold; }
+.bk-cal-day:disabled { background: transparent; border-color: transparent; color: #bbb; font-weight: normal; cursor: default; }
+.bk-cal-day[aria-pressed='true'] { background: var(--pri); border-color: var(--pri); color: #fff; }
+.bk-cal-note { margin: 6px 0 0; font-size: .8em; color: var(--muted); }

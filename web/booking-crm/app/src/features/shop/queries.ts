@@ -42,12 +42,13 @@ export interface ServiceRow {
   is_trial: boolean;
   first_time_only: boolean;
   return_days: number | null;
+  image: string | null;
   active: boolean;
 }
 export async function loadServices(tx: Tx, onlyActive = false): Promise<ServiceRow[]> {
   return q<ServiceRow>(
     tx,
-    `select id, name, kind, duration_min, price, is_trial, first_time_only, return_days, active from services ${onlyActive ? 'where active' : ''} order by sort, id`,
+    `select id, name, kind, duration_min, price, is_trial, first_time_only, return_days, image, active from services ${onlyActive ? 'where active' : ''} order by sort, id`,
   );
 }
 
@@ -71,6 +72,68 @@ export async function loadSessions(tx: Tx, from: string, to: string): Promise<Se
      where local_day(cs.starts_at) between $1::date and $2::date order by cs.starts_at, cs.id`,
     [from, to],
   );
+}
+
+/** 日付（YYYY-MM-DD）に日数を足す */
+export function addDays(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+export interface SessionInput {
+  service_id: string;
+  staff_id: string;
+  day: string;
+  start: string;
+  end: string;
+  capacity: number;
+}
+const at = (day: string, hm: string) => `${day}T${hm}:00+09:00`;
+/** 同じ担当の別の枠と時間が重なる・担当の休みの日、のどちらかなら true（exceptId の枠は除く） */
+async function sessionBlocked(tx: Tx, x: SessionInput, exceptId: string | null): Promise<boolean> {
+  const o = await tx.query<{ n: number }>(
+    `select count(*)::int as n from class_sessions where staff_id = $1 and starts_at < $3::timestamptz and ends_at > $2::timestamptz and id <> coalesce($4, '')`,
+    [x.staff_id, at(x.day, x.start), at(x.day, x.end), exceptId],
+  );
+  if ((o.rows[0]?.n ?? 0) > 0) return true;
+  const f = await tx.query<{ n: number }>('select count(*)::int as n from staff_off where staff_id = $1 and day = $2::date', [x.staff_id, x.day]);
+  return (f.rows[0]?.n ?? 0) > 0;
+}
+/** 開催日を足す。count が2以上なら、毎週同じ曜日に count 回。重なる日・休みの日は飛ばす */
+export async function addSessions(tx: Tx, x: SessionInput, count: number): Promise<{ added: number; skipped: number }> {
+  let added = 0;
+  let skipped = 0;
+  for (let i = 0; i < count; i++) {
+    const one = { ...x, day: addDays(x.day, 7 * i) };
+    if (await sessionBlocked(tx, one, null)) {
+      skipped++;
+      continue;
+    }
+    await tx.query(
+      `insert into class_sessions (id, service_id, staff_id, starts_at, ends_at, capacity) values ($1, $2, $3, $4::timestamptz, $5::timestamptz, $6)`,
+      [`cs_${Date.now().toString(36)}${i}`, one.service_id, one.staff_id, at(one.day, one.start), at(one.day, one.end), one.capacity],
+    );
+    added++;
+  }
+  return { added, skipped };
+}
+/** 開催日を直す。エラーなら文、問題なければ null */
+export async function updateSession(tx: Tx, id: string, x: SessionInput, booked: number): Promise<string | null> {
+  if (x.capacity < booked) return `すでに${booked}名が申し込んでいるので、定員は${booked}名より少なくできません。`;
+  if (await sessionBlocked(tx, x, id)) return '同じ担当の別の枠と時間が重なるか、担当の休みの日です。';
+  await tx.query(
+    `update class_sessions set staff_id = $2, starts_at = $3::timestamptz, ends_at = $4::timestamptz, capacity = $5 where id = $1`,
+    [id, x.staff_id, at(x.day, x.start), at(x.day, x.end), x.capacity],
+  );
+  return null;
+}
+/** 開催日を消す。申込み（キャンセル以外）が入っていれば消せない */
+export async function removeSession(tx: Tx, id: string): Promise<string | null> {
+  const r = await tx.query<{ n: number }>('select count(*)::int as n from reservations where session_id = $1', [id]);
+  const n = r.rows[0]?.n ?? 0;
+  if (n > 0) return `この開催日には予約の記録が${n}件あるので消せません（予約の履歴を残すためです）。`;
+  await tx.query('delete from class_sessions where id = $1', [id]);
+  return null;
 }
 
 export interface OffRow {
@@ -197,9 +260,42 @@ export async function changeTo(tx: Tx, id: string, slot: Pick<Slot, 'staff_id' |
 // ── 設定 ──
 export async function saveService(tx: Tx, s: ServiceRow): Promise<void> {
   await tx.query(
-    `update services set name = $2, price = $3, duration_min = $4, is_trial = $5, first_time_only = $6, return_days = $7, active = $8 where id = $1`,
-    [s.id, s.name, s.price, s.duration_min, s.is_trial, s.first_time_only, s.return_days, s.active],
+    `update services set name = $2, price = $3, duration_min = $4, is_trial = $5, first_time_only = $6, return_days = $7, active = $8, image = $9 where id = $1`,
+    [s.id, s.name, s.price, s.duration_min, s.is_trial, s.first_time_only, s.return_days, s.active, s.image],
   );
+}
+/** メニュー（コース）を足す。並びは最後。画像は同梱の名前か、data: の画像 */
+export async function addService(tx: Tx, x: { name: string; kind: 'timed' | 'class'; price: number; duration_min: number; image: string | null }): Promise<void> {
+  const id = `svc_${Date.now().toString(36)}`;
+  await tx.query(
+    `insert into services (id, name, kind, duration_min, price, image, sort) values ($1, $2, $3, $4, $5, $6, (select coalesce(max(sort), 0) + 1 from services))`,
+    [id, x.name, x.kind, x.duration_min, x.price, x.image],
+  );
+}
+/** 予約や履歴のあるメニューの数（0 なら消せる） */
+export async function serviceUseCount(tx: Tx, id: string): Promise<number> {
+  const r = await tx.query<{ n: number }>('select count(*)::int as n from reservations where service_id = $1', [id]);
+  return r.rows[0]?.n ?? 0;
+}
+export async function removeService(tx: Tx, id: string): Promise<void> {
+  await tx.query('delete from class_sessions where service_id = $1', [id]);
+  await tx.query('delete from services where id = $1', [id]);
+}
+/** 担当（講師）の名前・肩書きを直す */
+export async function saveStaff(tx: Tx, id: string, name: string, title: string): Promise<void> {
+  await tx.query('update staff set name = $2, title = $3 where id = $1', [id, name, title]);
+}
+/** 担当を足す。営業時間は月〜金 10:00〜18:00 から始める（あとで直せる） */
+export async function addStaff(tx: Tx, name: string, title: string): Promise<void> {
+  const id = `st_${Date.now().toString(36)}`;
+  await tx.query('insert into staff (id, name, title) values ($1, $2, $3)', [id, name, title]);
+  for (const wd of [1, 2, 3, 4, 5]) {
+    await tx.query(`insert into staff_hours (staff_id, weekday, open_time, close_time) values ($1, $2, '10:00', '18:00')`, [id, wd]);
+  }
+}
+/** 担当を外す：予約の画面と表から消える。入っている予約と履歴は、そのまま残る */
+export async function deactivateStaff(tx: Tx, id: string): Promise<void> {
+  await tx.query('update staff set active = false where id = $1', [id]);
 }
 export async function saveHours(tx: Tx, staffId: string, rows: { weekday: number; open_time: string; close_time: string }[]): Promise<void> {
   await tx.query('delete from staff_hours where staff_id = $1', [staffId]);

@@ -102,17 +102,21 @@
 .sh-karte-btn { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 14px; border: 1px solid var(--pri); border-radius: 10px; color: var(--pri-dark); background: var(--pri-soft); text-decoration: none; }
 
 /* 設定画面：隙間をつめ、1行を折り返さない（コースの表・営業時間・休み） */
-.sh-service { table-layout: fixed; min-width: 760px; }
+.sh-service { table-layout: fixed; min-width: 900px; }
 .sh-service th, .sh-service td { padding: 4px 4px; white-space: nowrap; }
-.sh-service th:nth-child(1) { width: 26%; }
-.sh-service th:nth-child(2) { width: 96px; }
-.sh-service th:nth-child(3) { width: 84px; }
-.sh-service th:nth-child(4) { width: 100px; }
-.sh-service th:nth-child(n+5):nth-child(-n+7) { width: 64px; text-align: center; }
-.sh-service th:nth-child(8) { width: 72px; }
-.sh-service td:nth-child(n+5):nth-child(-n+7) { text-align: center; }
+.sh-service th:nth-child(1) { width: 130px; }
+.sh-service th:nth-child(2) { width: 22%; }
+.sh-service th:nth-child(3) { width: 90px; }
+.sh-service th:nth-child(4) { width: 78px; }
+.sh-service th:nth-child(5) { width: 92px; }
+.sh-service th:nth-child(n+6):nth-child(-n+8) { width: 64px; text-align: center; }
+.sh-service th:nth-child(9) { width: 130px; }
+.sh-service td:nth-child(n+6):nth-child(-n+8) { text-align: center; }
+.sh-service td:nth-child(9) button { min-width: 0; width: auto; margin-right: 4px; padding: 0 10px; white-space: nowrap; }
 .sh-service input[type='text'], .sh-service input[type='number'] { min-width: 0; padding: 4px 8px; text-overflow: ellipsis; }
-.sh-service button.primary { min-width: 0; width: 100%; padding: 0 8px; white-space: nowrap; }
+.sh-service .sh-img { min-width: 0; }
+.sh-service .sh-img img { width: 112px; height: 62px; }
+.sh-service .sh-img select { width: 112px; max-width: 112px; min-height: 32px; padding: 0 4px; font-size: .85em; }
 .sh-hours { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 8px; }
 .sh-hours .sh-col { padding: 8px 10px; }
 .sh-hours .sh-col > button { margin-top: 6px; white-space: nowrap; }
@@ -150,3 +154,29 @@
 /* 予約表のパネルのキャンセル理由 */
 .sh-cancel-box { flex: 1 1 100%; display: grid; gap: 6px; }
 .sh-cancel-box textarea { width: 100%; }
+
+/* メニューの画像・追加、担当の編集ボタン */
+.sh-img { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 120px; position: relative; }
+.sh-img img { width: 96px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.sh-img select { max-width: 150px; }
+.sh-file { display: inline-block; font-size: .85em; color: var(--pri-dark); text-decoration: underline; cursor: pointer; }
+.sh-file input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.sh-service-add { margin-top: 12px; }
+.sh-col h3 { display: flex; align-items: baseline; gap: 8px; }
+.sh-staff-edit { margin-left: auto; padding: 0 12px; min-height: 32px; font-size: .85em; }
+.sh-staff-form { display: grid; gap: 8px; margin-bottom: 10px; padding: 10px; background: var(--pri-soft); border-radius: 12px; }
+.sh-staff-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sh-staff-add { margin-top: 12px; }
+
+/* 教室の開催日 */
+.sh-session-add { margin-bottom: 12px; }
+.sh-sessions { table-layout: fixed; min-width: 960px; }
+.sh-sessions th, .sh-sessions td { padding: 4px 4px; white-space: nowrap; }
+.sh-sessions th:nth-child(1) { width: 175px; }
+.sh-sessions th:nth-child(2), .sh-sessions th:nth-child(3) { width: 112px; }
+.sh-sessions th:nth-child(5) { width: 130px; }
+.sh-sessions th:nth-child(6) { width: 76px; }
+.sh-sessions th:nth-child(7) { width: 64px; }
+.sh-sessions th:nth-child(8) { width: 140px; }
+.sh-sessions input[type='date'], .sh-sessions input[type='time'], .sh-sessions input[type='number'], .sh-sessions select { min-width: 0; width: 100%; padding: 4px 6px; }
+.sh-sessions td:nth-child(8) button { min-width: 0; width: auto; margin-right: 4px; padding: 0 10px; }

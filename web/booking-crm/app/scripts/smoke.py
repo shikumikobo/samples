@@ -257,7 +257,7 @@ def book_first_slot(page, name, svc_index, slot_pick="first", day=0):
     page.locator("main button").nth(svc_index).click()
     page.wait_for_url("**/book/time/**"); page.wait_for_timeout(1300)
     if day:
-        page.locator("main button").filter(has_text=re.compile(r"^\d+月\d+日")).nth(day).click()
+        page.locator(".bk-cal-day:not([disabled])").nth(day).click()
         page.wait_for_timeout(900)
     slots = page.locator("main button").filter(has_text=re.compile(r"^\d\d:\d\d"))
     if slots.count() == 0:
@@ -350,7 +350,7 @@ def delta(br):
             target.locator("button.ghost").first.click()
             page.wait_for_timeout(1200)
             # 数日先の日に動かす（先頭の日は今日で、期限を過ぎて、あとのキャンセルが押せなくなるため）
-            dbtn = target.locator("button").filter(has_text=re.compile(r"^\d+月\d+日"))
+            dbtn = target.locator(".bk-cal-day:not([disabled])")
             if dbtn.count() > 3:
                 dbtn.nth(3).click()
                 page.wait_for_timeout(900)
@@ -429,7 +429,7 @@ def epsilon(br):
         # 通常メニュー（2番目）の空き枠を選んで確認の画面へ（日を変えて他の流れの枠とぶつからないようにする）
         page.locator("main button").nth(1).click()
         page.wait_for_url("**/book/time/**"); page.wait_for_timeout(1300)
-        page.locator("main button").filter(has_text=re.compile(r"^\d+月\d+日")).nth(4).click()
+        page.locator(".bk-cal-day:not([disabled])").nth(4).click()
         page.wait_for_timeout(900)
         slots = page.locator("main button").filter(has_text=re.compile(r"^\d\d:\d\d"))
         check(slots.count() > 0, "（はじめての方）空き枠が出る")
@@ -466,7 +466,7 @@ def epsilon(br):
         page.goto(B + "/book/"); ready(page)
         page.locator("main button").nth(1).click()
         page.wait_for_url("**/book/time/**"); page.wait_for_timeout(1300)
-        page.locator("main button").filter(has_text=re.compile(r"^\d+月\d+日")).nth(6).click()
+        page.locator(".bk-cal-day:not([disabled])").nth(6).click()
         page.wait_for_timeout(900)
         page.locator("main button").filter(has_text=re.compile(r"^\d\d:\d\d")).first.click()
         proceed(page)

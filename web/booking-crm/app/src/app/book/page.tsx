@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/lib/app-state';
 import { withRole } from '@/lib/db';
 import { errorMessage } from '@/lib/errors';
+import { imageSrc } from '@/lib/images';
 import { listServices, type ServiceRow } from '@/features/booking/api';
 import { formatDuration, formatYen } from '@/features/booking/format';
 import { saveDraft, takeNotice } from '@/features/booking/draft';
@@ -60,7 +61,7 @@ export default function Page() {
           {services.map((s) => (
             <li key={s.id} className={`bk-service${s.is_trial ? ' trial' : ''}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/images/${s.image}`} alt="" loading="lazy" />
+              <img src={imageSrc(s.image)} alt="" loading="lazy" />
               {s.is_trial && <span className="bk-tag">{bw.trialLabel}</span>}
               <div className="body">
                 <h2>{s.name}</h2>
