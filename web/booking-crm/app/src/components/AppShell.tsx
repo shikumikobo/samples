@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { NEW_CUSTOMER_ID, NEW_CUSTOMER_LABEL, useApp } from '@/lib/app-state';
 import { MODES, WORDS } from '@/lib/words';
 import type { Role } from '@/lib/db';
+import { InstallButton } from '@/lib/install';
 
 const CUSTOMER_NAV = [
   { href: '/book/', key: 'nav_book' },
@@ -103,6 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
+          <InstallButton className="top-install" />
         </header>
       </div>
 

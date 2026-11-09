@@ -38,6 +38,7 @@ import {
   type StaffRow,
 } from './queries';
 import { COLORS, FONTS } from '@/lib/theme';
+import { InstallButton, useInstall } from '@/lib/install';
 import { FlashView, LoadState, ShopPage, useAct, useShopLoad } from './ui';
 
 const DAYS = [
@@ -175,6 +176,7 @@ function SettingsBody() {
       <OffEdit staff={data.staff} off={data.off} today={data.today} busy={busy} onAdd={(sid, d, n) => act((tx) => addOff(tx, sid, d, n), '休みを足しました。')} onRemove={(sid, d) => act((tx) => removeOff(tx, sid, d), '休みを消しました。')} onError={(t) => setFlash({ kind: 'err', text: t })} />
 
       <ThemeEdit />
+      <InstallEdit />
     </>
   );
 }
@@ -535,6 +537,26 @@ function OffEdit({ staff, off, today, busy, onAdd, onRemove, onError }: { staff:
         {off.length === 0 && <li>これからの休みはありません。</li>}
       </ul>
     </div>
+  );
+}
+
+/** アプリとしてインストール：ボタンを押したときだけ、画面と静的ファイルを端末に保存する */
+function InstallEdit() {
+  const { installed } = useInstall();
+  return (
+    <>
+      <h2>アプリとしてインストール</h2>
+      <div className="card">
+        {installed ? (
+          <p className="sh-small">この端末には、すでにアプリとして入っています。</p>
+        ) : (
+          <>
+            <p className="sh-small">スマホやパソコンに、アプリとして入れられます。ボタンを押したときだけ入ります（押さなければ、何も入りません）。</p>
+            <InstallButton />
+          </>
+        )}
+      </div>
+    </>
   );
 }
 

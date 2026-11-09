@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { DemoBanner } from './DemoBanner';
 import { RoleSwitcher } from './RoleSwitcher';
+import { InstallButton } from '@/lib/install';
 import { useRequireSession } from '@/lib/auth';
 
 export function PortalShell({ children }: { children: ReactNode }) {
@@ -14,6 +15,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
         <span className="brand">サンプル工務店　お客さま専用ページ</span>
         <span className="row">
           <RoleSwitcher />
+          <InstallButton className="top-install" />
           <button onClick={signOut}>入り直す</button>
         </span>
       </header>

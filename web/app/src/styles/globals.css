@@ -139,3 +139,10 @@ button, input, select, textarea { border-radius: 4px; }
   .login { padding-top: 24px; }
   .login-list button { grid-template-columns: 1fr; }
 }
+
+/* アプリとしてインストール（押したときだけ入る） */
+.install-wrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.install-btn { font-size: 13px; min-height: 36px; padding: 0 12px; border-radius: 999px; border-color: #fff; background: transparent; color: #fff; font-weight: bold; }
+.install-hint .install-btn { border-color: var(--navy); color: var(--navy); }
+.install-msg { font-size: 12px; max-width: 320px; }
+.portal-top .install-btn { border-color: var(--navy); color: var(--navy); }

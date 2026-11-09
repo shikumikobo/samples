@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { DemoBanner } from './DemoBanner';
 import { RoleSwitcher } from './RoleSwitcher';
+import { InstallButton } from '@/lib/install';
 import { useRequireSession } from '@/lib/auth';
 import { useCan } from '@/lib/permissions';
 import { useRedirectExternal } from '@/features/portal/useRedirectExternal';
@@ -41,6 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <RoleSwitcher />
+        <InstallButton className="top-install" />
         <button onClick={signOut} style={{ minHeight: 36 }}>
           入り直す
         </button>
