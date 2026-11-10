@@ -337,6 +337,8 @@
         WebApp.call(APP, 'remove', { staffId: staffId(), day: day }).then(function (r) {
           WebApp.show(r.message || '消しました');
           openDay = '';
+          // 台帳から読み直す前に、カレンダーから先に外す（読み直しは数秒かかる）
+          drawCalendar(shownMonth, shownRows.filter(function (x) { return x.day !== day; }));
           loadMine();
         }).catch(function (e) { WebApp.show(e.message, true); });
       }
