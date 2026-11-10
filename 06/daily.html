@@ -27,10 +27,28 @@
     textarea { min-height: 64px; resize: vertical; }
     #addBtn { background: #fff; color: #2f5f22; border: 1px solid #4f8a3a; }
     #sentBox h2 { font-size: 18px; margin: 28px 0 6px; }
-    #sent { list-style: none; margin: 0; padding: 0; }
-    #sent li { padding: 10px 0; border-bottom: 1px solid #e0e3dc; font-size: 15px; }
-    #sent .d { font-weight: bold; }
-    #sent .b { color: #5d6458; }
+    .calhead { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+    .calhead strong { font-size: 18px; }
+    .calhead button { width: auto; margin: 0; padding: 6px 14px; font-size: 16px; background: #fff; color: #2f63b8; border: 1px solid #c9cec3; }
+    .calhead button:disabled { opacity: .4; }
+    .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal .w { text-align: center; font-size: 13px; color: #5d6458; padding: 2px 0; }
+    .cal .w:nth-child(7n+1), .cal .c:nth-child(7n+1) .n { color: #b3392f; }
+    .cal .w:nth-child(7n), .cal .c:nth-child(7n) .n { color: #2f63b8; }
+    .cal .c { min-height: 58px; border: 1px solid #e0e3dc; border-radius: 8px; padding: 3px 2px; text-align: center; background: #fff; }
+    .cal .c.blank { border: 0; background: none; }
+    .cal .c.today { outline: 2px solid #2f63b8; }
+    .cal .c.done { background: #e3f1dc; border-color: #4f8a3a; }
+    .cal .n { display: block; font-size: 12px; }
+    .cal .h { display: block; width: 100%; margin: 2px 0 0; padding: 6px 0; font-size: 16px; font-weight: bold; background: #4f8a3a; color: #fff; border: 0; border-radius: 6px; }
+    .cal .h[aria-pressed="true"] { background: #2f5f22; outline: 3px solid #2f63b8; }
+    .legend { font-size: 13px; color: #5d6458; margin: 6px 0 0; }
+    .legend i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; border: 1px solid #4f8a3a; background: #e3f1dc; border-radius: 3px; }
+    #detail { margin-top: 10px; border: 1px solid #c9cec3; border-radius: 10px; background: #fff; padding: 4px 14px; }
+    #detail .d { font-weight: bold; padding-top: 8px; }
+    #detail .row { padding: 8px 0; border-bottom: 1px solid #e0e3dc; font-size: 15px; }
+    #detail .row:last-child { border-bottom: 0; }
+    #detail .b { color: #5d6458; }
   </style>
 </head>
 <body>
@@ -50,8 +68,15 @@
     <p id="out" class="msg" hidden></p>
     <button id="send">送る</button>
     <div id="sentBox" hidden>
-      <h2>送った日報（この14日）</h2>
-      <ul id="sent"></ul>
+      <h2>送った日報</h2>
+      <div class="calhead">
+        <button id="prevM" type="button" aria-label="前の月">◀</button>
+        <strong id="monthLabel"></strong>
+        <button id="nextM" type="button" aria-label="次の月">▶</button>
+      </div>
+      <div id="cal" class="cal"></div>
+      <p class="legend"><i></i> 日報を送った日（数字は、その日の作業時間の合計。押すと詳しく出ます）</p>
+      <div id="detail" hidden></div>
     </div>
   </main>
   <script>
@@ -246,43 +271,124 @@
         });
       });
 
-      /** この14日に送った日報を出す。 */
+      let viewMonth = ''; // 'yyyy-MM'（初めは今日のある月）
+      let openDay = '';   // 詳しく出している日
+
+      function monthShift(m, d) {
+        const dt = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 + d, 1);
+        return dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2);
+      }
+      function fmtH(n) { return String(Math.round(n * 100) / 100); }
+
+      function showDetail(day, rows) {
+        const box = document.getElementById('detail');
+        box.innerHTML = '';
+        if (!day) { box.hidden = true; return; }
+        const d = document.createElement('div');
+        d.className = 'd';
+        const total = rows.reduce(function (t, x) { return t + x.hours; }, 0);
+        d.textContent = Number(day.slice(5, 7)) + '/' + Number(day.slice(8, 10)) + '　合計 ' + fmtH(total) + '時間';
+        box.appendChild(d);
+        rows.forEach(function (x) {
+          const r = document.createElement('div');
+          r.className = 'row';
+          const t = document.createElement('div');
+          t.textContent = x.siteId + ' ' + (x.siteName || '') + '　' + fmtH(x.hours) + '時間';
+          r.appendChild(t);
+          if (x.body) {
+            const b = document.createElement('div');
+            b.className = 'b';
+            b.textContent = x.body;
+            r.appendChild(b);
+          }
+          box.appendChild(r);
+        });
+        box.hidden = false;
+      }
+
+      /** 月のカレンダーを出す。日報のある日は色を付け、その日の合計時間を数字で出す（押すと詳しく）。 */
+      function drawCalendar(month, rows) {
+        const cal = document.getElementById('cal');
+        cal.innerHTML = '';
+        document.getElementById('monthLabel').textContent = month.slice(0, 4) + '年' + Number(month.slice(5, 7)) + '月';
+        ['日', '月', '火', '水', '木', '金', '土'].forEach(function (w) {
+          const c = document.createElement('div');
+          c.className = 'w';
+          c.textContent = w;
+          cal.appendChild(c);
+        });
+        const byDay = {};
+        rows.forEach(function (x) { (byDay[x.day] = byDay[x.day] || []).push(x); });
+        const y = Number(month.slice(0, 4));
+        const mo = Number(month.slice(5, 7)) - 1;
+        const first = new Date(y, mo, 1).getDay();
+        const last = new Date(y, mo + 1, 0).getDate();
+        for (let i = 0; i < first; i++) {
+          const b = document.createElement('div');
+          b.className = 'c blank';
+          cal.appendChild(b);
+        }
+        for (let n = 1; n <= last; n++) {
+          const key = month + '-' + ('0' + n).slice(-2);
+          const c = document.createElement('div');
+          c.className = 'c';
+          const num = document.createElement('span');
+          num.className = 'n';
+          num.textContent = n;
+          c.appendChild(num);
+          if (key === today()) c.classList.add('today');
+          const list = byDay[key];
+          if (list) {
+            c.classList.add('done');
+            const total = list.reduce(function (t, x) { return t + x.hours; }, 0);
+            const hb = document.createElement('button');
+            hb.type = 'button';
+            hb.className = 'h';
+            hb.textContent = fmtH(total);
+            hb.setAttribute('aria-pressed', openDay === key ? 'true' : 'false');
+            hb.setAttribute('aria-label', Number(month.slice(5, 7)) + '月' + n + '日 合計' + fmtH(total) + '時間。押すと詳しく出ます');
+            hb.addEventListener('click', function () {
+              openDay = openDay === key ? '' : key;
+              cal.querySelectorAll('.h').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+              if (openDay) hb.setAttribute('aria-pressed', 'true');
+              showDetail(openDay, list);
+            });
+            c.appendChild(hb);
+          }
+          cal.appendChild(c);
+        }
+        if (!byDay[openDay]) openDay = '';
+        showDetail(openDay, byDay[openDay] || []);
+      }
+
+      /** 送った日報を、月のカレンダーで出す。 */
       function loadMine() {
         const box = document.getElementById('sentBox');
-        const ul = document.getElementById('sent');
         if (!staffId()) {
           box.hidden = true;
           return;
         }
-        WebApp.call(APP, 'mine', { staffId: staffId() }).then(function (r) {
-          ul.innerHTML = '';
-          (r.rows || []).forEach(function (x) {
-            const li = document.createElement('li');
-            const d = document.createElement('div');
-            d.className = 'd';
-            d.textContent = x.day.slice(5).replace('-', '/') + '　' + x.hours + '時間';
-            const s = document.createElement('div');
-            s.textContent = x.siteId + ' ' + (x.siteName || '');
-            li.appendChild(d);
-            li.appendChild(s);
-            if (x.body) {
-              const b = document.createElement('div');
-              b.className = 'b';
-              b.textContent = x.body;
-              li.appendChild(b);
-            }
-            ul.appendChild(li);
-          });
-          if (!ul.children.length) {
-            const li = document.createElement('li');
-            li.textContent = 'まだありません';
-            ul.appendChild(li);
-          }
+        if (!viewMonth) viewMonth = today().slice(0, 7);
+        const month = viewMonth;
+        document.getElementById('nextM').disabled = month >= today().slice(0, 7);
+        WebApp.call(APP, 'mine', { staffId: staffId(), month: month }).then(function (r) {
+          if (month !== viewMonth) return; // 読んでいる間に月を変えたとき
+          drawCalendar(month, (r.rows || []).filter(function (x) { return x.day.slice(0, 7) === month; }));
           box.hidden = false;
         }).catch(function () {
           box.hidden = true; // 一覧が読めなくても、送るのはできる
         });
       }
+      document.getElementById('prevM').addEventListener('click', function () {
+        viewMonth = monthShift(viewMonth || today().slice(0, 7), -1);
+        openDay = '';
+        loadMine();
+      });
+      document.getElementById('nextM').addEventListener('click', function () {
+        viewMonth = monthShift(viewMonth || today().slice(0, 7), 1);
+        openDay = '';
+        loadMine();
+      });
 
       WebApp.call(APP, 'init').then(function (r) {
         info = Object.assign(info, r);
