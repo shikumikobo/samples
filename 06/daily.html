@@ -35,13 +35,13 @@
     .cal .w { text-align: center; font-size: 13px; color: #5d6458; padding: 2px 0; }
     .cal .w:nth-child(7n+1), .cal .c:nth-child(7n+1) .n { color: #b3392f; }
     .cal .w:nth-child(7n), .cal .c:nth-child(7n) .n { color: #2f63b8; }
-    .cal .c { min-height: 58px; border: 1px solid #e0e3dc; border-radius: 8px; padding: 3px 2px; text-align: center; background: #fff; }
+    .cal .c { display: block; width: auto; margin: 0; min-height: 58px; border: 1px solid #e0e3dc; border-radius: 8px; padding: 3px 2px; text-align: center; background: #fff; color: #1f2a1a; font: inherit; }
     .cal .c.blank { border: 0; background: none; }
+    .cal .c.sel { outline: 3px solid #2f63b8; }
     .cal .c.today { outline: 2px solid #2f63b8; }
     .cal .c.done { background: #e3f1dc; border-color: #4f8a3a; }
     .cal .n { display: block; font-size: 12px; }
-    .cal .h { display: block; width: 100%; margin: 2px 0 0; padding: 6px 0; font-size: 16px; font-weight: bold; background: #4f8a3a; color: #fff; border: 0; border-radius: 6px; }
-    .cal .h[aria-pressed="true"] { background: #2f5f22; outline: 3px solid #2f63b8; }
+    .cal .h { display: block; margin: 2px 0 0; padding: 6px 0; font-size: 16px; font-weight: bold; background: #4f8a3a; color: #fff; border-radius: 6px; }
     .legend { font-size: 13px; color: #5d6458; margin: 6px 0 0; }
     .legend i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; border: 1px solid #4f8a3a; background: #e3f1dc; border-radius: 3px; }
     #detail { margin-top: 10px; border: 1px solid #c9cec3; border-radius: 10px; background: #fff; padding: 4px 14px; }
@@ -49,6 +49,10 @@
     #detail .row { padding: 8px 0; border-bottom: 1px solid #e0e3dc; font-size: 15px; }
     #detail .row:last-child { border-bottom: 0; }
     #detail .b { color: #5d6458; }
+    #detail .none { padding: 8px 0 4px; color: #5d6458; }
+    #detail .acts { display: flex; gap: 8px; padding: 8px 0 10px; }
+    #detail .acts button { margin: 0; padding: 10px 8px; font-size: 15px; background: #fff; color: #2f5f22; border: 1px solid #4f8a3a; }
+    #detail .acts button.del { color: #a33; border-color: #d9b2ad; }
   </style>
 </head>
 <body>
@@ -75,7 +79,7 @@
         <button id="nextM" type="button" aria-label="次の月">▶</button>
       </div>
       <div id="cal" class="cal"></div>
-      <p class="legend"><i></i> 日報を送った日（数字は、その日の作業時間の合計。押すと詳しく出ます）</p>
+      <p class="legend"><i></i> 日報を送った日（数字は、その日の作業時間の合計）。日付を押すと、送った時間が出ます。そこで直したり消したりできます</p>
       <div id="detail" hidden></div>
     </div>
   </main>
@@ -202,6 +206,23 @@
           if (h === 'その他') h = other.value;
           return { siteId: site.value, hours: h === '' ? NaN : Number(h), body: body.value.trim() };
         };
+        /** 送った日報の1行を、この欄に入れる（修正のとき）。 */
+        box._set = function (row) {
+          site.value = row.siteId;
+          body.value = row.body || '';
+          const want = String(row.hours);
+          let found = false;
+          hours.querySelectorAll('input').forEach(function (r) {
+            if (r.value === want) { r.checked = true; found = true; }
+          });
+          if (!found) {
+            hours.querySelectorAll('input').forEach(function (r) {
+              if (r.value === 'その他') r.checked = true;
+            });
+            other.hidden = false;
+            other.value = want;
+          }
+        };
         entriesBox.appendChild(box);
         renumber();
       }
@@ -280,14 +301,72 @@
       }
       function fmtH(n) { return String(Math.round(n * 100) / 100); }
 
+      let shownMonth = '';
+      let shownRows = [];
+
+      /** 直したり消したりできる日か（今日まで、画面から入れられる日数の中）。 */
+      function editable(day) { return day <= today() && day >= day_min(); }
+      function day_min() { return document.getElementById('day').min || ''; }
+
+      function actBtn(label, cls, fn) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        if (cls) b.className = cls;
+        b.addEventListener('click', fn);
+        return b;
+      }
+
+      /** その日の日報を、入力の欄に戻して直せるようにする（送り直すと入れ替わる）。 */
+      function startEdit(day, rows) {
+        document.getElementById('day').value = day;
+        entriesBox.innerHTML = '';
+        rows.slice(0, info.maxEntries).forEach(function (r) {
+          addEntry();
+          entriesBox.lastChild._set(r);
+        });
+        if (!rows.length) addEntry();
+        WebApp.show(Number(day.slice(5, 7)) + '/' + Number(day.slice(8, 10)) + 'の日報を、入力の欄に出しました。直して［送る］を押すと、入れ替わります');
+        document.getElementById('day').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function removeDay(day) {
+        const md = Number(day.slice(5, 7)) + '/' + Number(day.slice(8, 10));
+        if (!window.confirm(md + 'の日報を消します。よろしいですか？')) return;
+        WebApp.show('消しています…');
+        WebApp.call(APP, 'remove', { staffId: staffId(), day: day }).then(function (r) {
+          WebApp.show(r.message || '消しました');
+          openDay = '';
+          loadMine();
+        }).catch(function (e) { WebApp.show(e.message, true); });
+      }
+
+      /** 選んだ日の、送った日報（現場・時間・内容）と、直す・消すボタン。 */
       function showDetail(day, rows) {
         const box = document.getElementById('detail');
         box.innerHTML = '';
         if (!day) { box.hidden = true; return; }
+        const md = Number(day.slice(5, 7)) + '/' + Number(day.slice(8, 10));
         const d = document.createElement('div');
         d.className = 'd';
+        if (!rows.length) {
+          d.textContent = md;
+          box.appendChild(d);
+          const n = document.createElement('div');
+          n.className = 'none';
+          n.textContent = '日報は送っていません';
+          box.appendChild(n);
+          if (editable(day)) {
+            const acts = document.createElement('div');
+            acts.className = 'acts';
+            acts.appendChild(actBtn('この日の日報を入れる', '', function () { startEdit(day, []); }));
+            box.appendChild(acts);
+          }
+          box.hidden = false;
+          return;
+        }
         const total = rows.reduce(function (t, x) { return t + x.hours; }, 0);
-        d.textContent = Number(day.slice(5, 7)) + '/' + Number(day.slice(8, 10)) + '　合計 ' + fmtH(total) + '時間';
+        d.textContent = md + '　合計 ' + fmtH(total) + '時間';
         box.appendChild(d);
         rows.forEach(function (x) {
           const r = document.createElement('div');
@@ -303,11 +382,25 @@
           }
           box.appendChild(r);
         });
+        const acts = document.createElement('div');
+        acts.className = 'acts';
+        if (editable(day)) {
+          acts.appendChild(actBtn('直す', '', function () { startEdit(day, rows); }));
+          acts.appendChild(actBtn('消す', 'del', function () { removeDay(day); }));
+        } else {
+          const n = document.createElement('div');
+          n.className = 'none';
+          n.textContent = '直すときは、事務の人に伝えてください';
+          acts.appendChild(n);
+        }
+        box.appendChild(acts);
         box.hidden = false;
       }
 
-      /** 月のカレンダーを出す。日報のある日は色を付け、その日の合計時間を数字で出す（押すと詳しく）。 */
+      /** 月のカレンダーを出す。日報のある日は色を付け、その日の合計時間を数字で出す。日付を押すと、その日の日報が出る。 */
       function drawCalendar(month, rows) {
+        shownMonth = month;
+        shownRows = rows;
         const cal = document.getElementById('cal');
         cal.innerHTML = '';
         document.getElementById('monthLabel').textContent = month.slice(0, 4) + '年' + Number(month.slice(5, 7)) + '月';
@@ -330,34 +423,39 @@
         }
         for (let n = 1; n <= last; n++) {
           const key = month + '-' + ('0' + n).slice(-2);
-          const c = document.createElement('div');
+          const c = document.createElement('button');
+          c.type = 'button';
           c.className = 'c';
           const num = document.createElement('span');
           num.className = 'n';
           num.textContent = n;
           c.appendChild(num);
           if (key === today()) c.classList.add('today');
+          if (key === openDay) c.classList.add('sel');
           const list = byDay[key];
+          let label = Number(month.slice(5, 7)) + '月' + n + '日';
           if (list) {
             c.classList.add('done');
             const total = list.reduce(function (t, x) { return t + x.hours; }, 0);
-            const hb = document.createElement('button');
-            hb.type = 'button';
+            const hb = document.createElement('span');
             hb.className = 'h';
             hb.textContent = fmtH(total);
-            hb.setAttribute('aria-pressed', openDay === key ? 'true' : 'false');
-            hb.setAttribute('aria-label', Number(month.slice(5, 7)) + '月' + n + '日 合計' + fmtH(total) + '時間。押すと詳しく出ます');
-            hb.addEventListener('click', function () {
-              openDay = openDay === key ? '' : key;
-              cal.querySelectorAll('.h').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
-              if (openDay) hb.setAttribute('aria-pressed', 'true');
-              showDetail(openDay, list);
-            });
             c.appendChild(hb);
+            label += ' 合計' + fmtH(total) + '時間';
+          } else {
+            label += ' 日報なし';
           }
+          c.setAttribute('aria-label', label + '。押すと詳しく出ます');
+          c.setAttribute('aria-pressed', key === openDay ? 'true' : 'false');
+          c.addEventListener('click', function () {
+            openDay = openDay === key ? '' : key;
+            cal.querySelectorAll('.c.sel').forEach(function (x) { x.classList.remove('sel'); x.setAttribute('aria-pressed', 'false'); });
+            if (openDay) { c.classList.add('sel'); c.setAttribute('aria-pressed', 'true'); }
+            showDetail(openDay, list || []);
+          });
           cal.appendChild(c);
         }
-        if (!byDay[openDay]) openDay = '';
+        if (openDay && openDay.slice(0, 7) !== month) openDay = '';
         showDetail(openDay, byDay[openDay] || []);
       }
 
