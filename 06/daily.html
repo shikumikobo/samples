@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <!-- URL の合言葉を、ほかのサイトへ渡さない -->
+  <meta name="referrer" content="no-referrer">
+  <title>日報を入れる</title>
+  <link rel="stylesheet" href="../shared/webapp.css">
+  <script src="../shared/webapp.js"></script>
+  <style>
+    .me { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 0 0; }
+    .me strong { font-size: 20px; }
+    .me a, .add { font-size: 15px; color: #2f63b8; white-space: nowrap; }
+    .entry { margin-top: 18px; padding: 4px 14px 14px; border: 1px solid #c9cec3; border-radius: 12px; background: #fff; }
+    .entry h2 { display: flex; justify-content: space-between; align-items: baseline; font-size: 17px; margin: 10px 0 0; }
+    .entry h2 button { width: auto; margin: 0; padding: 4px 10px; font-size: 14px; background: #fff; color: #a33; border: 1px solid #d9b2ad; }
+    .entry label { margin-top: 12px; }
+    .hours { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+    .hours label { margin: 0; font-weight: normal; }
+    .hours input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .hours span { display: block; text-align: center; padding: 12px 4px; white-space: nowrap; border: 1px solid #c9cec3; border-radius: 10px; background: #fff; }
+    .hours input:checked + span { background: #4f8a3a; border-color: #4f8a3a; color: #fff; font-weight: bold; }
+    .hours input:focus-visible + span { outline: 3px solid #2f63b8; }
+    .other { margin-top: 8px; }
+    textarea { min-height: 64px; resize: vertical; }
+    #addBtn { background: #fff; color: #2f5f22; border: 1px solid #4f8a3a; }
+    #sentBox h2 { font-size: 18px; margin: 28px 0 6px; }
+    #sent { list-style: none; margin: 0; padding: 0; }
+    #sent li { padding: 10px 0; border-bottom: 1px solid #e0e3dc; font-size: 15px; }
+    #sent .d { font-weight: bold; }
+    #sent .b { color: #5d6458; }
+  </style>
+</head>
+<body>
+  <!-- 06 作業日報と人件費：職人さんが日報を入れる画面。処理は GAS の daily（06_daily-report/src/daily.js）。
+       1日に2つの現場まで（午前・午後など）。同じ日を送り直すと、前に送った分と入れ替わる（hearing.md の決めたこと）。 -->
+  <main>
+    <h1>日報を入れる</h1>
+    <div id="pick">
+      <label for="staff">あなたの名前（最初の1回だけ）</label>
+      <select id="staff"><option value="">読んでいます…</option></select>
+    </div>
+    <div id="meRow" class="me" hidden><span><strong id="meName"></strong> さん</span><a id="change" href="#">名前を変える</a></div>
+    <label for="day">日付</label>
+    <input id="day" type="date">
+    <div id="entries"></div>
+    <button id="addBtn" type="button">＋ 現場を足す（午後など）</button>
+    <p id="out" class="msg" hidden></p>
+    <button id="send">送る</button>
+    <div id="sentBox" hidden>
+      <h2>送った日報（この14日）</h2>
+      <ul id="sent"></ul>
+    </div>
+  </main>
+  <script>
+    (function () {
+      const APP = 'daily';
+      const STORE = 'webapp.daily.staff';
+      const MAX_BODY = 200;
+      const staffSel = document.getElementById('staff');
+      const pick = document.getElementById('pick');
+      const meRow = document.getElementById('meRow');
+      const day = document.getElementById('day');
+      const entriesBox = document.getElementById('entries');
+      const addBtn = document.getElementById('addBtn');
+      const btn = document.getElementById('send');
+      let info = { staff: [], sites: [], hours: [4, 6, 7.5, 8], maxEntries: 2, pastDays: 31 };
+      let count = 0; // 足した入力の欄の通し番号（ラジオの name を分けるため）
+
+      if (!WebApp.ready()) return;
+
+      function ymd(d) {
+        return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+      }
+      function today() { return info.today || ymd(new Date()); }
+      function store(v) {
+        try { if (v) localStorage.setItem(STORE, v); else localStorage.removeItem(STORE); } catch (e) { /* 覚えられないブラウザ */ }
+      }
+      function stored() {
+        try { return localStorage.getItem(STORE) || ''; } catch (e) { return ''; }
+      }
+      function staffId() { return staffSel.value; }
+      function staffName(id) {
+        const s = info.staff.filter(function (x) { return x.id === id; })[0];
+        return s ? s.name : '';
+      }
+
+      /** 名前を選んでいれば「○○ さん」だけを出し、選ぶ欄は隠す。 */
+      function showMe() {
+        const name = staffName(staffId());
+        pick.hidden = !!name;
+        meRow.hidden = !name;
+        document.getElementById('meName').textContent = name;
+      }
+      staffSel.addEventListener('change', function () {
+        store(staffId());
+        showMe();
+        loadMine();
+      });
+      document.getElementById('change').addEventListener('click', function (e) {
+        e.preventDefault();
+        pick.hidden = false;
+        meRow.hidden = true;
+        staffSel.focus();
+      });
+
+      /** 現場・時間・内容の入力の欄を1つ足す。 */
+      function addEntry() {
+        const n = ++count;
+        const box = document.createElement('div');
+        box.className = 'entry';
+        const h = document.createElement('h2');
+        h.textContent = '現場';
+        box.appendChild(h);
+
+        const siteLabel = document.createElement('label');
+        siteLabel.textContent = '現場';
+        siteLabel.htmlFor = 'site' + n;
+        const site = document.createElement('select');
+        site.id = 'site' + n;
+        site.className = 'site';
+        site.add(new Option('選んでください', ''));
+        info.sites.forEach(function (s) { site.add(new Option(s.id + ' ' + s.name, s.id)); });
+        box.appendChild(siteLabel);
+        box.appendChild(site);
+
+        const hl = document.createElement('label');
+        hl.textContent = '作業時間';
+        box.appendChild(hl);
+        const hours = document.createElement('div');
+        hours.className = 'hours';
+        hours.setAttribute('role', 'radiogroup');
+        hours.setAttribute('aria-label', '作業時間');
+        const other = document.createElement('input');
+        other.type = 'number';
+        other.step = '0.5';
+        other.min = '0.5';
+        other.max = '16';
+        other.inputMode = 'decimal';
+        other.placeholder = '例：5.5（時間）';
+        other.className = 'other';
+        other.hidden = true;
+        info.hours.concat(['その他']).forEach(function (v) {
+          const l = document.createElement('label');
+          const r = document.createElement('input');
+          r.type = 'radio';
+          r.name = 'hours' + n;
+          r.value = String(v);
+          r.addEventListener('change', function () {
+            other.hidden = v !== 'その他';
+            if (!other.hidden) other.focus();
+          });
+          const sp = document.createElement('span');
+          sp.textContent = v === 'その他' ? v : v + '時間';
+          l.appendChild(r);
+          l.appendChild(sp);
+          hours.appendChild(l);
+        });
+        box.appendChild(hours);
+        box.appendChild(other);
+
+        const bl = document.createElement('label');
+        bl.textContent = '内容（なくてもよい）';
+        bl.htmlFor = 'body' + n;
+        const body = document.createElement('textarea');
+        body.id = 'body' + n;
+        body.maxLength = MAX_BODY;
+        body.placeholder = '浴室の解体、床の下地';
+        box.appendChild(bl);
+        box.appendChild(body);
+
+        box._get = function () {
+          const checked = hours.querySelector('input:checked');
+          let h = checked ? checked.value : '';
+          if (h === 'その他') h = other.value;
+          return { siteId: site.value, hours: h === '' ? NaN : Number(h), body: body.value.trim() };
+        };
+        entriesBox.appendChild(box);
+        renumber();
+      }
+
+      /** 欄の見出し（現場1・現場2）と、2つ目の欄の「外す」、足すボタンの出し入れ。 */
+      function renumber() {
+        const boxes = entriesBox.querySelectorAll('.entry');
+        boxes.forEach(function (box, i) {
+          const h = box.querySelector('h2');
+          h.textContent = boxes.length > 1 ? '現場' + (i + 1) : '現場と時間';
+          if (i > 0) {
+            const rm = document.createElement('button');
+            rm.type = 'button';
+            rm.textContent = '外す';
+            rm.addEventListener('click', function () { box.remove(); renumber(); });
+            h.appendChild(rm);
+          }
+        });
+        addBtn.hidden = boxes.length >= info.maxEntries;
+      }
+      addBtn.addEventListener('click', addEntry);
+
+      function resetEntries() {
+        entriesBox.innerHTML = '';
+        addEntry();
+      }
+
+      /** 送る前に確かめる（同じことは GAS でも確かめる）。間違いがあれば言葉を返す。 */
+      function check(list) {
+        if (!staffId()) return '名前を選んでください';
+        if (!day.value) return '日付を選んでください';
+        if (day.value > today()) return '先の日の日報は送れません。日付を確かめてください';
+        if (day.value < day.min) return info.pastDays + '日より前の日報は、事務の人に伝えてください';
+        let total = 0;
+        for (let i = 0; i < list.length; i++) {
+          const e = list[i];
+          const label = list.length > 1 ? '現場' + (i + 1) + 'の' : '';
+          if (!e.siteId) return label + '現場を選んでください';
+          if (!(e.hours > 0)) return label + '作業時間を選んでください';
+          if (e.hours > 16 || Math.round(e.hours * 2) !== e.hours * 2) return '時間は0.5時間きざみで入れてください（例：7.5）';
+          total += e.hours;
+        }
+        if (list.length > 1 && list[0].siteId === list[1].siteId) return '同じ現場が2つあります。1つにまとめてください';
+        if (total > 16) return '1日の時間の合計が16時間をこえています';
+        return '';
+      }
+
+      btn.addEventListener('click', function () {
+        const list = Array.prototype.map.call(entriesBox.querySelectorAll('.entry'), function (b) { return b._get(); });
+        const err = check(list);
+        if (err) {
+          WebApp.show(err, true);
+          return;
+        }
+        btn.disabled = true;
+        addBtn.disabled = true;
+        WebApp.show('送っています…');
+        WebApp.call(APP, 'send', { staffId: staffId(), day: day.value, entries: list }).then(function (r) {
+          WebApp.show(r.message || '送りました');
+          resetEntries();
+          loadMine();
+        }).catch(function (e) {
+          WebApp.show(e.message, true); // 入れたものは残す（そのまま、もう一度押せる）
+        }).then(function () {
+          btn.disabled = false;
+          addBtn.disabled = false;
+        });
+      });
+
+      /** この14日に送った日報を出す。 */
+      function loadMine() {
+        const box = document.getElementById('sentBox');
+        const ul = document.getElementById('sent');
+        if (!staffId()) {
+          box.hidden = true;
+          return;
+        }
+        WebApp.call(APP, 'mine', { staffId: staffId() }).then(function (r) {
+          ul.innerHTML = '';
+          (r.rows || []).forEach(function (x) {
+            const li = document.createElement('li');
+            const d = document.createElement('div');
+            d.className = 'd';
+            d.textContent = x.day.slice(5).replace('-', '/') + '　' + x.hours + '時間';
+            const s = document.createElement('div');
+            s.textContent = x.siteId + ' ' + (x.siteName || '');
+            li.appendChild(d);
+            li.appendChild(s);
+            if (x.body) {
+              const b = document.createElement('div');
+              b.className = 'b';
+              b.textContent = x.body;
+              li.appendChild(b);
+            }
+            ul.appendChild(li);
+          });
+          if (!ul.children.length) {
+            const li = document.createElement('li');
+            li.textContent = 'まだありません';
+            ul.appendChild(li);
+          }
+          box.hidden = false;
+        }).catch(function () {
+          box.hidden = true; // 一覧が読めなくても、送るのはできる
+        });
+      }
+
+      WebApp.call(APP, 'init').then(function (r) {
+        info = Object.assign(info, r);
+        staffSel.innerHTML = '';
+        staffSel.add(new Option('選んでください', ''));
+        info.staff.forEach(function (s) { staffSel.add(new Option(s.name, s.id)); });
+        const want = stored();
+        if (want && info.staff.some(function (s) { return s.id === want; })) staffSel.value = want;
+        day.value = day.max = today();
+        const min = new Date(today() + 'T00:00:00');
+        min.setDate(min.getDate() - info.pastDays);
+        day.min = ymd(min);
+        showMe();
+        resetEntries();
+        loadMine();
+      }).catch(function (e) {
+        staffSel.innerHTML = '';
+        staffSel.add(new Option('読めませんでした', ''));
+        btn.disabled = true;
+        addBtn.hidden = true;
+        WebApp.show(e.message, true);
+      });
+    })();
+  </script>
+</body>
+</html>
