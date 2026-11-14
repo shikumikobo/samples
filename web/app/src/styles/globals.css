@@ -105,7 +105,7 @@ button, input, select, textarea { border-radius: 4px; }
 .table td:first-child, .num, td[data-num], time { font-family: var(--num); font-variant-numeric: tabular-nums; }
 .table th { border-bottom: 2px solid var(--navy); color: var(--navy); font-weight: 700; letter-spacing: .04em; }
 .table tr:hover td { background: #eef3f6; }
-.demo-banner { background: #fff6cc; border-bottom-color: var(--safety); color: #5a4300; }
+.demo-banner { background: #fff; border-bottom-color: #dde3e8; color: #3d4852; }
 
 /* 外部の専用ページ：白い紙。上は細い帯だけ */
 .portal { background: #fff; color: #1c2733; }
